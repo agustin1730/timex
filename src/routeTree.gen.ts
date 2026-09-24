@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditorTimerIdRouteImport } from './routes/editor.$timerId'
+import { Route as PlayTimerIdRouteImport } from './routes/play.$timerId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const EditorTimerIdRoute = EditorTimerIdRouteImport.update({
   path: '/editor/$timerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayTimerIdRoute = PlayTimerIdRouteImport.update({
+  id: '/play/$timerId',
+  path: '/play/$timerId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
+  '/play/$timerId': typeof PlayTimerIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
+  '/play/$timerId': typeof PlayTimerIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
+  '/play/$timerId': typeof PlayTimerIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/editor/$timerId'
+  fullPaths: '/' | '/editor/$timerId' | '/play/$timerId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor/$timerId'
-  id: '__root__' | '/' | '/editor/$timerId'
+  to: '/' | '/editor/$timerId' | '/play/$timerId'
+  id: '__root__' | '/' | '/editor/$timerId' | '/play/$timerId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EditorTimerIdRoute: typeof EditorTimerIdRoute
+  PlayTimerIdRoute: typeof PlayTimerIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditorTimerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/play/$timerId': {
+      id: '/play/$timerId'
+      path: '/play/$timerId'
+      fullPath: '/play/$timerId'
+      preLoaderRoute: typeof PlayTimerIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EditorTimerIdRoute: EditorTimerIdRoute,
+  PlayTimerIdRoute: PlayTimerIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
