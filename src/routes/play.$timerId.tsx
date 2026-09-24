@@ -107,7 +107,8 @@ function Player() {
           next += 1;
           candidate = steps[next];
         }
-        if (next >= steps.length) {
+        const step = steps[next];
+        if (!step) {
           deadlineRef.current = null;
           setRunning(false);
           setFinished(true);
