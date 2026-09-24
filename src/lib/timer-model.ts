@@ -17,7 +17,39 @@ export type TimerPreset = {
   name: string;
   blocks: Block[];
   updatedAt: number;
+  /** Anunciar etapas con voz (por temporizador) */
+  voice?: boolean;
+  /** Mostrar notificaciones (por temporizador) */
+  notifications?: boolean;
+  /** Carpeta o subcarpeta; null/undefined = biblioteca principal */
+  folderId?: string | null;
 };
+
+export type Folder = {
+  id: string;
+  name: string;
+  /** null = carpeta de primer nivel; id = subcarpeta */
+  parentId: string | null;
+};
+
+export const timerVoice = (t: TimerPreset) => t.voice !== false;
+export const timerNotifications = (t: TimerPreset) => t.notifications !== false;
+
+export function cloneBlock(b: Block): Block {
+  return { ...b, id: uid(), stages: b.stages.map((s) => ({ ...s, id: uid() })) };
+}
+
+export function cloneTimer(t: TimerPreset): TimerPreset {
+  return {
+    ...t,
+    id: uid(),
+    name: `${t.name} (copia)`,
+    voice: timerVoice(t),
+    notifications: timerNotifications(t),
+    folderId: t.folderId ?? null,
+    blocks: t.blocks.map(cloneBlock),
+  };
+}
 
 /** Una etapa ya expandida en la línea de tiempo final */
 export type Step = {
@@ -97,11 +129,14 @@ export function validateTimer(timer: TimerPreset): ValidationIssue[] {
   return issues;
 }
 
-export function emptyTimer(): TimerPreset {
+export function emptyTimer(folderId: string | null = null): TimerPreset {
   return {
     id: uid(),
     name: "Nuevo temporizador",
     updatedAt: Date.now(),
+    voice: true,
+    notifications: true,
+    folderId,
     blocks: [
       {
         id: uid(),
@@ -113,33 +148,40 @@ export function emptyTimer(): TimerPreset {
   };
 }
 
+export const EXAMPLE_ID = "ejemplo-intervalos";
+
+function round(name: string, repeats: number, work: number, rest: number): Block {
+  return {
+    id: uid(),
+    name,
+    repeats,
+    stages: [
+      { id: uid(), name: "Trabajo", duration: work },
+      { id: uid(), name: "Descanso", duration: rest },
+    ],
+  };
+}
+
+function restBlock(): Block {
+  return { id: uid(), name: "Descanso", repeats: 1, stages: [{ id: uid(), name: "Descanso", duration: 60 }] };
+}
+
 export function exampleTimer(): TimerPreset {
   return {
-    id: "ejemplo-intervalos",
+    id: EXAMPLE_ID,
     name: "Ejemplo: intervalos de trabajo",
     updatedAt: Date.now(),
+    voice: true,
+    notifications: true,
+    folderId: null,
     blocks: [
-      {
-        id: uid(),
-        name: "Bloque 1",
-        repeats: 5,
-        stages: [
-          { id: uid(), name: "Trabajo", duration: 20 },
-          { id: uid(), name: "Descanso", duration: 10 },
-        ],
-      },
-      {
-        id: uid(),
-        name: "Bloque 2",
-        repeats: 1,
-        stages: [{ id: uid(), name: "Pausa larga", duration: 180 }],
-      },
-      {
-        id: uid(),
-        name: "Bloque 3",
-        repeats: 1,
-        stages: [{ id: uid(), name: "Trabajo continuo", duration: 120 }],
-      },
+      round("Round 1", 15, 5, 2),
+      restBlock(),
+      round("Round 2", 15, 5, 5),
+      restBlock(),
+      round("Round 3", 10, 10, 5),
+      restBlock(),
+      round("Round 4", 15, 1, 2),
     ],
   };
 }
