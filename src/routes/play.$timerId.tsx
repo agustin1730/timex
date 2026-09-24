@@ -119,7 +119,6 @@ function Player() {
             notify("Temporizador finalizado", "La secuencia terminó.");
           return prev;
         }
-        const step = steps[next];
         deadlineRef.current = Date.now() + (step.duration - overflow) * 1000;
         setRemaining(step.duration - overflow);
         announce(step);
