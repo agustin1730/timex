@@ -1,11 +1,16 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, Play, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Copy, Play, Plus, Save, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { requestNotificationPermission } from "@/lib/announcer";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  cloneBlock,
+  timerNotifications,
+  timerVoice,
   expandTimer,
   formatHuman,
   uid,
@@ -29,6 +34,8 @@ export const Route = createFileRoute("/editor/$timerId")({
         property: "og:description",
         content: "Bloques con etapas, duraciones y repeticiones, con vista previa.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Editor,
@@ -87,7 +94,7 @@ function Editor() {
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
         <div className="flex min-w-0 items-center gap-3">
           <Button asChild size="icon" variant="ghost">
-            <Link to="/">
+            <Link to="/" search={timer.folderId ? { folder: timer.folderId } : {}}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -119,7 +126,29 @@ function Editor() {
         </div>
       </header>
 
-      <section className="mt-8 space-y-4">
+      <section className="panel mt-6 flex flex-wrap items-center gap-6 p-4">
+        <div className="flex items-center gap-3">
+          <Switch
+            id="t-voice"
+            checked={timerVoice(timer)}
+            onCheckedChange={(v) => patch({ voice: v })}
+          />
+          <Label htmlFor="t-voice">Anunciar etapas con voz</Label>
+        </div>
+        <div className="flex items-center gap-3">
+          <Switch
+            id="t-notif"
+            checked={timerNotifications(timer)}
+            onCheckedChange={async (v) => {
+              if (v) await requestNotificationPermission();
+              patch({ notifications: v });
+            }}
+          />
+          <Label htmlFor="t-notif">Mostrar notificaciones de Windows</Label>
+        </div>
+      </section>
+
+      <section className="mt-6 space-y-4">
         {timer.blocks.map((block, bi) => (
           <article key={block.id} className="panel p-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
@@ -163,6 +192,19 @@ function Editor() {
                   onClick={() => patch({ blocks: move(timer.blocks, bi, bi + 1) })}
                 >
                   <ArrowDown className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  title="Duplicar bloque"
+                  aria-label="Duplicar bloque"
+                  onClick={() => {
+                    const blocks = [...timer.blocks];
+                    blocks.splice(bi + 1, 0, cloneBlock(block));
+                    patch({ blocks });
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
                 </Button>
                 <Button
                   size="icon"

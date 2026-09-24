@@ -10,16 +10,16 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import {
   expandTimer,
   formatClock,
   formatHuman,
+  timerNotifications,
+  timerVoice,
   type Step,
   type TimerPreset,
 } from "@/lib/timer-model";
-import { getTimer, loadSettings, saveSettings, type AppSettings } from "@/lib/timer-storage";
+import { getTimer } from "@/lib/timer-storage";
 import {
   notify,
   reportRunning,
@@ -42,6 +42,8 @@ export const Route = createFileRoute("/play/$timerId")({
         property: "og:description",
         content: "Tiempo restante, etapa actual, repeticiones y controles rápidos.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Player,
@@ -55,10 +57,8 @@ function Player() {
   const [remaining, setRemaining] = useState(0);
   const [running, setRunning] = useState(false);
   const [finished, setFinished] = useState(false);
-  const [settings, setSettings] = useState<AppSettings>({
-    voice: true,
-    notifications: true,
-  });
+  // Ajustes de avisos congelados al abrir la sesión (una copia propia).
+  const [settings, setSettings] = useState({ voice: true, notifications: true });
 
   // Base de tiempo real: no dependemos de la frecuencia del intervalo visual.
   const deadlineRef = useRef<number | null>(null);
@@ -67,10 +67,12 @@ function Player() {
   settingsRef.current = settings;
 
   useEffect(() => {
-    const t = getTimer(timerId) ?? null;
+    // Copia profunda: editar el temporizador no altera esta sesión.
+    const found = getTimer(timerId);
+    const t = found ? (JSON.parse(JSON.stringify(found)) as TimerPreset) : null;
     setTimer(t);
-    setSettings(loadSettings());
     if (t) {
+      setSettings({ voice: timerVoice(t), notifications: timerNotifications(t) });
       const s = expandTimer(t);
       setSteps(s);
       setRemaining(s[0]?.duration ?? 0);
@@ -80,9 +82,10 @@ function Player() {
   const announce = useCallback((step: Step) => {
     if (announcedRef.current === step.key) return;
     announcedRef.current = step.key;
+    stopSpeaking(); // cancela cualquier locución atrasada
     if (settingsRef.current.voice) speak(step.stageName);
     if (settingsRef.current.notifications)
-      notify(step.stageName, `${step.blockName} · repetición ${step.repeatIndex}/${step.repeatTotal}`);
+      notify(`Etapa: ${step.stageName}`, `${step.blockName} · repetición ${step.repeatIndex}/${step.repeatTotal}`);
   }, []);
 
   // Motor: un tick frecuente que recalcula contra el reloj del sistema.
@@ -218,18 +221,13 @@ function Player() {
   const elapsed = elapsedBefore + ((current?.duration ?? 0) - remaining);
   const progress = current ? 1 - remaining / current.duration : 0;
 
-  const updateSettings = (patch: Partial<AppSettings>) => {
-    const nextSettings = { ...settings, ...patch };
-    setSettings(nextSettings);
-    saveSettings(nextSettings);
-  };
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-5 py-8">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <Button asChild size="icon" variant="ghost">
-            <Link to="/">
+            <Link to="/" search={timer.folderId ? { folder: timer.folderId } : {}}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
           </Button>
@@ -264,6 +262,11 @@ function Player() {
             : "Última etapa"}
         </p>
 
+        {finished && (
+          <Button size="lg" onClick={start} className="mt-2">
+            <RotateCcw className="mr-1 h-5 w-5" /> Volver a iniciar desde el principio
+          </Button>
+        )}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           <Button size="lg" variant="secondary" onClick={() => goTo(index - 1, running)}>
             <SkipBack className="mr-1 h-5 w-5" /> Anterior
@@ -289,27 +292,10 @@ function Player() {
         </p>
       </section>
 
-      <section className="panel mt-4 flex flex-wrap items-center gap-6 p-4">
-        <div className="flex items-center gap-3">
-          <Switch
-            id="voice-play"
-            checked={settings.voice}
-            onCheckedChange={(v) => updateSettings({ voice: v })}
-          />
-          <Label htmlFor="voice-play">Voz</Label>
-        </div>
-        <div className="flex items-center gap-3">
-          <Switch
-            id="notif-play"
-            checked={settings.notifications}
-            onCheckedChange={async (v) => {
-              if (v) await requestNotificationPermission();
-              updateSettings({ notifications: v });
-            }}
-          />
-          <Label htmlFor="notif-play">Notificaciones</Label>
-        </div>
-      </section>
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        Voz: {settings.voice ? "activada" : "desactivada"} · Notificaciones:{" "}
+        {settings.notifications ? "activadas" : "desactivadas"} (se cambian en el editor)
+      </p>
     </main>
   );
 }
