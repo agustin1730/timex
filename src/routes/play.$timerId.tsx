@@ -136,6 +136,7 @@ function Player() {
       if (steps.length === 0) return;
       const clamped = Math.max(0, Math.min(steps.length - 1, newIndex));
       const step = steps[clamped];
+      if (!step) return;
       setIndex(clamped);
       setFinished(false);
       setRemaining(step.duration);
