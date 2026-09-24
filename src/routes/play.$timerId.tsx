@@ -101,9 +101,11 @@ function Player() {
       setIndex((prev) => {
         let next = prev + 1;
         let overflow = -left;
-        while (next < steps.length && overflow >= steps[next].duration) {
-          overflow -= steps[next].duration;
+        let candidate = steps[next];
+        while (candidate && overflow >= candidate.duration) {
+          overflow -= candidate.duration;
           next += 1;
+          candidate = steps[next];
         }
         if (next >= steps.length) {
           deadlineRef.current = null;
