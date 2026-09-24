@@ -152,16 +152,17 @@ function Player() {
     if (steps.length === 0) return;
     if (settings.notifications) await requestNotificationPermission();
     const step = steps[index];
-    const left = finished ? step.duration : remaining;
+    const first = steps[0];
+    if (!step || !first) return;
     if (finished) {
       setFinished(false);
       setIndex(0);
-      deadlineRef.current = Date.now() + steps[0].duration * 1000;
-      setRemaining(steps[0].duration);
+      deadlineRef.current = Date.now() + first.duration * 1000;
+      setRemaining(first.duration);
       announcedRef.current = null;
-      announce(steps[0]);
+      announce(first);
     } else {
-      deadlineRef.current = Date.now() + left * 1000;
+      deadlineRef.current = Date.now() + remaining * 1000;
       announce(step);
     }
     setRunning(true);
