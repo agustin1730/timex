@@ -67,10 +67,10 @@ export const uid = () => Math.random().toString(36).slice(2, 10);
 export function expandTimer(timer: TimerPreset): Step[] {
   const steps: Step[] = [];
   timer.blocks.forEach((block, blockIndex) => {
-    const repeats = Math.max(1, Math.floor(block.repeats || 1));
+    const repeats = Number.isSafeInteger(block.repeats) && block.repeats > 0 ? block.repeats : 0;
     for (let r = 0; r < repeats; r++) {
       block.stages.forEach((stage, si) => {
-        if (stage.duration <= 0) return;
+        if (!Number.isFinite(stage.duration) || stage.duration <= 0) return;
         steps.push({
           key: `${block.id}-${r}-${stage.id}-${si}`,
           stageName: stage.name.trim() || "Etapa",
@@ -117,10 +117,12 @@ export function validateTimer(timer: TimerPreset): ValidationIssue[] {
   timer.blocks.forEach((b, i) => {
     const label = b.name.trim() || `Bloque ${i + 1}`;
     if (b.stages.length === 0) issues.push({ message: `«${label}» no tiene etapas.` });
-    if (!b.repeats || b.repeats < 1)
-      issues.push({ message: `«${label}» debe repetirse al menos una vez.` });
+    if (!Number.isSafeInteger(b.repeats) || b.repeats < 1)
+      issues.push({
+        message: `«${label}» debe tener un número entero de repeticiones mayor que cero.`,
+      });
     b.stages.forEach((s, si) => {
-      if (s.duration <= 0)
+      if (!Number.isFinite(s.duration) || s.duration <= 0)
         issues.push({
           message: `La etapa ${si + 1} de «${label}» debe durar más de cero.`,
         });
@@ -163,7 +165,12 @@ function round(name: string, repeats: number, work: number, rest: number): Block
 }
 
 function restBlock(): Block {
-  return { id: uid(), name: "Descanso", repeats: 1, stages: [{ id: uid(), name: "Descanso", duration: 60 }] };
+  return {
+    id: uid(),
+    name: "Descanso",
+    repeats: 1,
+    stages: [{ id: uid(), name: "Descanso", duration: 60 }],
+  };
 }
 
 export function exampleTimer(): TimerPreset {

@@ -1,4 +1,12 @@
-import { EXAMPLE_ID, exampleTimer, uid, type Folder, type TimerPreset } from "./timer-model";
+import {
+  exampleSequence,
+  EXAMPLE_SEQUENCE_ID,
+  sequenceItems,
+  removeTimerReferences,
+  flattenLegacyRepeats,
+  type SequencePreset,
+} from "./sequence-model.ts";
+import { EXAMPLE_ID, exampleTimer, uid, type Folder, type TimerPreset } from "./timer-model.ts";
 
 const KEY = "interval-timers.v1";
 const FOLDERS_KEY = "interval-timers.folders.v1";
@@ -12,17 +20,11 @@ function emit() {
 
 export function subscribe(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-/** Primera versión del ejemplo (sin editar): 3 bloques «Bloque 1..3». */
-function isUntouchedOldExample(t: TimerPreset) {
-  return (
-    t.blocks.length === 3 &&
-    t.blocks.map((b) => b.name).join("|") === "Bloque 1|Bloque 2|Bloque 3" &&
-    t.blocks.map((b) => b.stages.map((s) => `${s.name}:${s.duration}`).join(",")).join("|") ===
-      "Trabajo:20,Descanso:10|Pausa larga:180|Trabajo continuo:120"
-  );
+  window.addEventListener("storage", listener);
+  return () => {
+    listeners.delete(listener);
+    window.removeEventListener("storage", listener);
+  };
 }
 
 function readRaw(): TimerPreset[] {
@@ -39,13 +41,10 @@ function readRaw(): TimerPreset[] {
 export function loadTimers(): TimerPreset[] {
   if (typeof window === "undefined") return [];
   let timers = readRaw();
-  // Se siembra/actualiza el ejemplo una única vez; nunca se pisa una copia editada.
+  // Se crea una única vez. Se conserva íntegro cualquier ejemplo existente.
   if (!window.localStorage.getItem(EXAMPLE_KEY)) {
     const idx = timers.findIndex((t) => t.id === EXAMPLE_ID);
     if (idx < 0) timers = [exampleTimer(), ...timers];
-    else if (isUntouchedOldExample(timers[idx]!)) {
-      timers[idx] = { ...exampleTimer(), folderId: timers[idx]!.folderId ?? null };
-    }
     window.localStorage.setItem(KEY, JSON.stringify(timers));
     window.localStorage.setItem(EXAMPLE_KEY, "1");
   }
@@ -72,10 +71,11 @@ export function upsertTimer(timer: TimerPreset) {
 }
 
 export function deleteTimer(id: string) {
-  saveTimers(loadTimers().filter((t) => t.id !== id));
+  deleteTimers([id]);
 }
 
 export function moveTimer(id: string, folderId: string | null) {
+  if (folderId && !loadFolders().some((f) => f.id === folderId)) return;
   saveTimers(loadTimers().map((t) => (t.id === id ? { ...t, folderId } : t)));
 }
 
@@ -130,6 +130,92 @@ export function folderContents(id: string) {
 export function deleteFolder(id: string) {
   const folders = loadFolders();
   const ids = folderTree(id, folders);
-  saveTimers(loadTimers().filter((t) => !(t.folderId && ids.includes(t.folderId))));
+  deleteTimers(
+    loadTimers()
+      .filter((t) => t.folderId && ids.includes(t.folderId))
+      .map((t) => t.id),
+  );
   saveFolders(folders.filter((f) => !ids.includes(f.id)));
+}
+
+const SEQUENCES_KEY = "interval-timers.sequences.v1";
+const SEQUENCE_EXAMPLE_KEY = "interval-timers.sequence-example.v1";
+export const SEQUENCE_BACKUP_KEY = "interval-timers.sequences.before-expansion.v1";
+function convertSequences(sequences: SequencePreset[]) {
+  const converted = sequences.map(flattenLegacyRepeats);
+  if (converted.some((s, i) => s !== sequences[i])) {
+    // Backup must succeed before the original value can be replaced.
+    if (!window.localStorage.getItem(SEQUENCE_BACKUP_KEY))
+      window.localStorage.setItem(SEQUENCE_BACKUP_KEY, JSON.stringify(sequences));
+  }
+  return converted;
+}
+export function loadSequences(): SequencePreset[] {
+  if (typeof window === "undefined") return [];
+  const raw = window.localStorage.getItem(SEQUENCES_KEY);
+  const parsed = raw ? JSON.parse(raw) : [];
+  let sequences: SequencePreset[] = Array.isArray(parsed) ? parsed : [];
+  const converted = convertSequences(sequences);
+  if (converted.some((s, i) => s !== sequences[i])) {
+    window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(converted));
+    sequences = converted;
+  }
+  if (!window.localStorage.getItem(SEQUENCE_EXAMPLE_KEY)) {
+    if (
+      loadTimers().some((t) => t.id === EXAMPLE_ID) &&
+      !sequences.some((s) => s.id === EXAMPLE_SEQUENCE_ID)
+    )
+      sequences = [exampleSequence(), ...sequences];
+    window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(sequences));
+    window.localStorage.setItem(SEQUENCE_EXAMPLE_KEY, "1");
+  }
+  return sequences;
+}
+export function saveSequences(sequences: SequencePreset[]) {
+  window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(convertSequences(sequences)));
+  emit();
+}
+export function upsertSequence(sequence: SequencePreset) {
+  // Un editor abierto antes de borrar un temporizador no debe restaurar referencias eliminadas.
+  const valid = new Set(loadTimers().map((t) => t.id));
+  const missing = sequenceItems(sequence).flatMap((i) =>
+    i.kind === "timer" && !valid.has(i.timerId) ? [i.timerId] : [],
+  );
+  const next = removeTimerReferences(sequence, missing);
+  const sequences = loadSequences();
+  const index = sequences.findIndex((s) => s.id === sequence.id);
+  if (index < 0) sequences.push(next);
+  else sequences[index] = next;
+  saveSequences(sequences);
+}
+export function deleteSequence(id: string) {
+  saveSequences(loadSequences().filter((s) => s.id !== id));
+}
+export function affectedSequences(timerIds: string[]) {
+  return loadSequences().filter((s) =>
+    sequenceItems(s).some((i) => i.kind === "timer" && timerIds.includes(i.timerId)),
+  );
+}
+function deleteTimers(ids: string[]) {
+  const sequences = loadSequences().map((s) =>
+    sequenceItems(s).some((i) => i.kind === "timer" && ids.includes(i.timerId))
+      ? removeTimerReferences(s, ids)
+      : s,
+  );
+  window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(sequences));
+  saveTimers(loadTimers().filter((t) => !ids.includes(t.id)));
+}
+export function folderTimerIds(id: string) {
+  const tree = folderTree(id);
+  return loadTimers()
+    .filter((t) => t.folderId && tree.includes(t.folderId))
+    .map((t) => t.id);
+}
+export function sequenceDeletionWarning(ids: string[]) {
+  const names = affectedSequences(ids).map((s) => "«" + s.name + "»");
+  return names.length
+    ? " Secuencias afectadas: " +
+        names.join(", ") +
+        ". Se quitarán todas las apariciones de estos temporizadores y se recalcularán sus duraciones."
+    : "";
 }
