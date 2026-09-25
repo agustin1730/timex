@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, Copy, Play, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Clock, Copy, Play, Plus, Save, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { requestNotificationPermission } from "@/lib/announcer";
 
@@ -11,10 +11,7 @@ import {
   cloneBlock,
   timerNotifications,
   timerVoice,
-  expandTimer,
-  formatHuman,
   uid,
-  totalDuration,
   validateTimer,
   type Block,
   type TimerPreset,
@@ -32,7 +29,7 @@ export const Route = createFileRoute("/editor/$timerId")({
       { property: "og:title", content: "Editor de temporizador — Intervalos" },
       {
         property: "og:description",
-        content: "Bloques con etapas, duraciones y repeticiones, con vista previa.",
+        content: "Bloques con etapas, duraciones y repeticiones.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -82,7 +79,6 @@ function Editor() {
   };
 
   const issues = validateTimer(timer);
-  const steps = expandTimer(timer);
 
   const save = () => {
     upsertTimer(timer);
@@ -91,8 +87,8 @@ function Editor() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-5 py-8">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
-        <div className="flex min-w-0 items-center gap-3">
+      <header className="flex flex-wrap items-end gap-4">
+        <div className="flex min-w-48 flex-1 items-center gap-3">
           <Button asChild size="icon" variant="ghost">
             <Link to="/" search={timer.folderId ? { folder: timer.folderId } : {}}>
               <ArrowLeft className="h-5 w-5" />
@@ -139,9 +135,9 @@ function Editor() {
           <Switch
             id="t-notif"
             checked={timerNotifications(timer)}
-            onCheckedChange={async (v) => {
-              if (v) await requestNotificationPermission();
+            onCheckedChange={(v) => {
               patch({ notifications: v });
+              if (v) void requestNotificationPermission();
             }}
           />
           <Label htmlFor="t-notif">Mostrar notificaciones de Windows</Label>
@@ -149,186 +145,190 @@ function Editor() {
       </section>
 
       <section className="mt-6 space-y-4">
-        {timer.blocks.map((block, bi) => (
-          <article key={block.id} className="panel p-4">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3">
-              <div className="min-w-0">
-                <Label className="text-xs uppercase text-muted-foreground">
-                  Bloque {bi + 1}
-                </Label>
-                <Input
-                  value={block.name}
-                  onChange={(e) => patchBlock(bi, { name: e.target.value })}
-                  className="mt-1 font-semibold"
-                />
-              </div>
-              <div className="flex shrink-0 items-end gap-2">
-                <div className="w-24">
-                  <Label className="text-xs uppercase text-muted-foreground">
-                    Repetir
-                  </Label>
+        {timer.blocks.map((block, bi) => {
+          const valid =
+            Number.isSafeInteger(block.repeats) &&
+            block.repeats > 0 &&
+            block.stages.every((stage) => Number.isFinite(stage.duration) && stage.duration >= 0);
+          const seconds = Math.round(
+            block.stages.reduce((total, stage) => total + stage.duration, 0) * block.repeats,
+          );
+          return (
+            <article key={block.id} className="panel p-4">
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-32 flex-1">
+                  <Label className="text-xs uppercase text-muted-foreground">Bloque {bi + 1}</Label>
                   <Input
-                    type="number"
-                    min={1}
-                    value={block.repeats}
-                    onChange={(e) =>
-                      patchBlock(bi, { repeats: Math.max(1, Number(e.target.value) || 1) })
-                    }
-                    className="mt-1"
+                    value={block.name}
+                    onChange={(e) => patchBlock(bi, { name: e.target.value })}
+                    className="mt-1 font-semibold"
                   />
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="Subir bloque"
-                  onClick={() => patch({ blocks: move(timer.blocks, bi, bi - 1) })}
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="Bajar bloque"
-                  onClick={() => patch({ blocks: move(timer.blocks, bi, bi + 1) })}
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="Duplicar bloque"
-                  aria-label="Duplicar bloque"
-                  onClick={() => {
-                    const blocks = [...timer.blocks];
-                    blocks.splice(bi + 1, 0, cloneBlock(block));
-                    patch({ blocks });
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  title="Eliminar bloque"
-                  onClick={() =>
-                    patch({ blocks: timer.blocks.filter((_, i) => i !== bi) })
-                  }
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2">
-              {block.stages.map((stage, si) => {
-                const minutes = Math.floor(stage.duration / 60);
-                const seconds = stage.duration % 60;
-                const setDuration = (m: number, s: number) =>
-                  patchBlock(bi, {
-                    stages: block.stages.map((st, i) =>
-                      i === si
-                        ? { ...st, duration: Math.max(0, m) * 60 + Math.max(0, s) }
-                        : st,
-                    ),
-                  });
-                return (
-                  <div
-                    key={stage.id}
-                    className="flex flex-wrap items-end gap-2 rounded-lg bg-surface-strong p-3"
+                <div className="flex shrink-0 items-end gap-1 sm:gap-2">
+                  <div className="w-14 sm:w-24">
+                    <Label className="text-xs uppercase text-muted-foreground">Repetir</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={block.repeats}
+                      onChange={(e) =>
+                        patchBlock(bi, { repeats: Math.max(1, Number(e.target.value) || 1) })
+                      }
+                      className="mt-1"
+                    />
+                  </div>
+                  <span
+                    className="flex h-9 shrink-0 items-center gap-1 px-1 text-sm text-muted-foreground tabular-nums"
+                    aria-label={"Duración de " + (block.name || "Bloque " + (bi + 1))}
+                    aria-live="polite"
                   >
-                    <div className="min-w-40 flex-1">
-                      <Label className="text-xs uppercase text-muted-foreground">
-                        Etapa {si + 1}
-                      </Label>
-                      <Input
-                        value={stage.name}
-                        onChange={(e) =>
+                    <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                    {valid
+                      ? Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0")
+                      : "—"}
+                  </span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-7 sm:w-9"
+                    title="Subir bloque"
+                    onClick={() => patch({ blocks: move(timer.blocks, bi, bi - 1) })}
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-7 sm:w-9"
+                    title="Bajar bloque"
+                    onClick={() => patch({ blocks: move(timer.blocks, bi, bi + 1) })}
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-7 sm:w-9"
+                    title="Duplicar bloque"
+                    aria-label="Duplicar bloque"
+                    onClick={() => {
+                      const blocks = [...timer.blocks];
+                      blocks.splice(bi + 1, 0, cloneBlock(block));
+                      patch({ blocks });
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-7 sm:w-9"
+                    title="Eliminar bloque"
+                    onClick={() => patch({ blocks: timer.blocks.filter((_, i) => i !== bi) })}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {block.stages.map((stage, si) => {
+                  const minutes = Math.floor(stage.duration / 60);
+                  const seconds = stage.duration % 60;
+                  const setDuration = (m: number, s: number) =>
+                    patchBlock(bi, {
+                      stages: block.stages.map((st, i) =>
+                        i === si ? { ...st, duration: Math.max(0, m) * 60 + Math.max(0, s) } : st,
+                      ),
+                    });
+                  return (
+                    <div
+                      key={stage.id}
+                      className="flex flex-wrap items-end gap-2 rounded-lg bg-surface-strong p-3"
+                    >
+                      <div className="min-w-40 flex-1">
+                        <Label className="text-xs uppercase text-muted-foreground">
+                          Etapa {si + 1}
+                        </Label>
+                        <Input
+                          value={stage.name}
+                          onChange={(e) =>
+                            patchBlock(bi, {
+                              stages: block.stages.map((st, i) =>
+                                i === si ? { ...st, name: e.target.value } : st,
+                              ),
+                            })
+                          }
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="w-20">
+                        <Label className="text-xs uppercase text-muted-foreground">Min</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          value={minutes}
+                          onChange={(e) => setDuration(Number(e.target.value) || 0, seconds)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div className="w-20">
+                        <Label className="text-xs uppercase text-muted-foreground">Seg</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={59}
+                          value={seconds}
+                          onChange={(e) => setDuration(minutes, Number(e.target.value) || 0)}
+                          className="mt-1"
+                        />
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Subir etapa"
+                        onClick={() => patchBlock(bi, { stages: move(block.stages, si, si - 1) })}
+                      >
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Bajar etapa"
+                        onClick={() => patchBlock(bi, { stages: move(block.stages, si, si + 1) })}
+                      >
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        title="Eliminar etapa"
+                        onClick={() =>
                           patchBlock(bi, {
-                            stages: block.stages.map((st, i) =>
-                              i === si ? { ...st, name: e.target.value } : st,
-                            ),
+                            stages: block.stages.filter((_, i) => i !== si),
                           })
                         }
-                        className="mt-1"
-                      />
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </div>
-                    <div className="w-20">
-                      <Label className="text-xs uppercase text-muted-foreground">
-                        Min
-                      </Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={minutes}
-                        onChange={(e) => setDuration(Number(e.target.value) || 0, seconds)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="w-20">
-                      <Label className="text-xs uppercase text-muted-foreground">
-                        Seg
-                      </Label>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={59}
-                        value={seconds}
-                        onChange={(e) => setDuration(minutes, Number(e.target.value) || 0)}
-                        className="mt-1"
-                      />
-                    </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Subir etapa"
-                      onClick={() =>
-                        patchBlock(bi, { stages: move(block.stages, si, si - 1) })
-                      }
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Bajar etapa"
-                      onClick={() =>
-                        patchBlock(bi, { stages: move(block.stages, si, si + 1) })
-                      }
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      title="Eliminar etapa"
-                      onClick={() =>
-                        patchBlock(bi, {
-                          stages: block.stages.filter((_, i) => i !== si),
-                        })
-                      }
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                );
-              })}
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() =>
-                  patchBlock(bi, {
-                    stages: [
-                      ...block.stages,
-                      { id: uid(), name: "Etapa", duration: 30 },
-                    ],
-                  })
-                }
-              >
-                <Plus className="mr-1 h-4 w-4" /> Agregar etapa
-              </Button>
-            </div>
-          </article>
-        ))}
+                  );
+                })}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() =>
+                    patchBlock(bi, {
+                      stages: [...block.stages, { id: uid(), name: "Etapa", duration: 30 }],
+                    })
+                  }
+                >
+                  <Plus className="mr-1 h-4 w-4" /> Agregar etapa
+                </Button>
+              </div>
+            </article>
+          );
+        })}
 
         <Button
           variant="secondary"
@@ -350,38 +350,16 @@ function Editor() {
         </Button>
       </section>
 
-      <section className="panel mt-8 p-4">
-        <h2 className="text-lg font-semibold uppercase tracking-wide">Vista previa</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Duración total: {formatHuman(totalDuration(timer))} · {steps.length} etapas
-        </p>
-        {issues.length > 0 && (
-          <ul className="mt-3 space-y-1 text-sm text-destructive">
-            {issues.map((i) => (
-              <li key={i.message}>• {i.message}</li>
-            ))}
-          </ul>
-        )}
-        <ol className="mt-4 space-y-1 text-sm">
-          {steps.map((s, i) => (
-            <li
-              key={s.key}
-              className="flex items-center justify-between rounded-md bg-surface-strong px-3 py-1.5"
-            >
-              <span className="truncate">
-                <span className="text-muted-foreground">{i + 1}.</span> {s.stageName}
-                <span className="text-muted-foreground">
-                  {" "}
-                  — {s.blockName} ({s.repeatIndex}/{s.repeatTotal})
-                </span>
-              </span>
-              <span className="tabular-nums text-muted-foreground">
-                {formatHuman(s.duration)}
-              </span>
-            </li>
+      {issues.length > 0 && (
+        <ul
+          className="mt-6 space-y-1 text-sm text-destructive"
+          aria-label="Errores del temporizador"
+        >
+          {issues.map((issue) => (
+            <li key={issue.message}>• {issue.message}</li>
           ))}
-        </ol>
-      </section>
+        </ul>
+      )}
     </main>
   );
 }

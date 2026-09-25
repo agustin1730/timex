@@ -10,12 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SequencesRouteImport } from './routes/sequences'
 import { Route as EditorTimerIdRouteImport } from './routes/editor.$timerId'
 import { Route as PlayTimerIdRouteImport } from './routes/play.$timerId'
+import { Route as SequenceEditorSequenceIdRouteImport } from './routes/sequence-editor.$sequenceId'
+import { Route as SequencePlaySequenceIdRouteImport } from './routes/sequence-play.$sequenceId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SequencesRoute = SequencesRouteImport.update({
+  id: '/sequences',
+  path: '/sequences',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditorTimerIdRoute = EditorTimerIdRouteImport.update({
@@ -28,35 +36,77 @@ const PlayTimerIdRoute = PlayTimerIdRouteImport.update({
   path: '/play/$timerId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SequenceEditorSequenceIdRoute =
+  SequenceEditorSequenceIdRouteImport.update({
+    id: '/sequence-editor/$sequenceId',
+    path: '/sequence-editor/$sequenceId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const SequencePlaySequenceIdRoute = SequencePlaySequenceIdRouteImport.update({
+  id: '/sequence-play/$sequenceId',
+  path: '/sequence-play/$sequenceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/sequences': typeof SequencesRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
   '/play/$timerId': typeof PlayTimerIdRoute
+  '/sequence-editor/$sequenceId': typeof SequenceEditorSequenceIdRoute
+  '/sequence-play/$sequenceId': typeof SequencePlaySequenceIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sequences': typeof SequencesRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
   '/play/$timerId': typeof PlayTimerIdRoute
+  '/sequence-editor/$sequenceId': typeof SequenceEditorSequenceIdRoute
+  '/sequence-play/$sequenceId': typeof SequencePlaySequenceIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/sequences': typeof SequencesRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
   '/play/$timerId': typeof PlayTimerIdRoute
+  '/sequence-editor/$sequenceId': typeof SequenceEditorSequenceIdRoute
+  '/sequence-play/$sequenceId': typeof SequencePlaySequenceIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/editor/$timerId' | '/play/$timerId'
+  fullPaths:
+    | '/'
+    | '/sequences'
+    | '/editor/$timerId'
+    | '/play/$timerId'
+    | '/sequence-editor/$sequenceId'
+    | '/sequence-play/$sequenceId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/editor/$timerId' | '/play/$timerId'
-  id: '__root__' | '/' | '/editor/$timerId' | '/play/$timerId'
+  to:
+    | '/'
+    | '/sequences'
+    | '/editor/$timerId'
+    | '/play/$timerId'
+    | '/sequence-editor/$sequenceId'
+    | '/sequence-play/$sequenceId'
+  id:
+    | '__root__'
+    | '/'
+    | '/sequences'
+    | '/editor/$timerId'
+    | '/play/$timerId'
+    | '/sequence-editor/$sequenceId'
+    | '/sequence-play/$sequenceId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  SequencesRoute: typeof SequencesRoute
   EditorTimerIdRoute: typeof EditorTimerIdRoute
   PlayTimerIdRoute: typeof PlayTimerIdRoute
+  SequenceEditorSequenceIdRoute: typeof SequenceEditorSequenceIdRoute
+  SequencePlaySequenceIdRoute: typeof SequencePlaySequenceIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -66,6 +116,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sequences': {
+      id: '/sequences'
+      path: '/sequences'
+      fullPath: '/sequences'
+      preLoaderRoute: typeof SequencesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor/$timerId': {
@@ -82,13 +139,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlayTimerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sequence-editor/$sequenceId': {
+      id: '/sequence-editor/$sequenceId'
+      path: '/sequence-editor/$sequenceId'
+      fullPath: '/sequence-editor/$sequenceId'
+      preLoaderRoute: typeof SequenceEditorSequenceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sequence-play/$sequenceId': {
+      id: '/sequence-play/$sequenceId'
+      path: '/sequence-play/$sequenceId'
+      fullPath: '/sequence-play/$sequenceId'
+      preLoaderRoute: typeof SequencePlaySequenceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  SequencesRoute: SequencesRoute,
   EditorTimerIdRoute: EditorTimerIdRoute,
   PlayTimerIdRoute: PlayTimerIdRoute,
+  SequenceEditorSequenceIdRoute: SequenceEditorSequenceIdRoute,
+  SequencePlaySequenceIdRoute: SequencePlaySequenceIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
