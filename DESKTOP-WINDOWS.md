@@ -4,11 +4,11 @@
 
 Cada etapa de temporizador admite gris (predeterminado), rojo, amarillo, verde, violeta, azul o naranja. Los temporizadores anteriores sin campo de color se muestran en gris y se conservan sin reescribirlos. El editor muestra el color como fondo suave, borde lateral y selector circular. El paso expandido de reproducción transporta el nombre estable del color, por lo que las secuencias que ejecutan un temporizador y un futuro widget de Windows pueden usarlo; las transiciones todavía no tienen selector propio. El reproductor toma una copia del color al iniciar la sesión.
 
-Verificación del código: 41 pruebas, comprobación de tipos, compilación web y lint sin errores. La prueba visual en navegador confirmó la paleta, el cambio de color y ausencia de desplazamiento horizontal a 390 px. Esto no valida por sí solo la versión instalada.
+Verificación del código: 41 pruebas, comprobación de tipos, compilación web y lint sin errores. La prueba visual en navegador confirmó la paleta, el cambio de color y ausencia de desplazamiento horizontal a 390 px.
 
-La compilación local de Tauri está bloqueada por Windows Code Integrity: `rustc.exe` no puede cargar `rustc_driver-573e106f78c6e3e0.dll` (eventos 3033 y 3077). Hay un flujo de GitHub Actions para compilar el instalador NSIS en un entorno Windows separado. No instalar 0.21.0 hasta obtener y comprobar `Intervalos_0.21.0_x64-setup.exe`.
+La compilación local de Tauri está bloqueada por Windows Code Integrity: `rustc.exe` no puede cargar `rustc_driver-573e106f78c6e3e0.dll` (eventos 3033 y 3077). GitHub Actions compiló correctamente el instalador NSIS en Windows (ejecución `36332165055`). Se instaló `Intervalos_0.21.0_x64-setup.exe` sobre 0.20.1, se comprobó que el ejecutable informa 0.21.0 y que abre sin servidor de desarrollo. El temporizador local existente conserva sus siete bloques y duración de 10:30; el editor muestra el selector gris en sus etapas sin reescribir el dato anterior. Se guardó una copia del perfil WebView2 antes de instalar. Falta probar manualmente la reproducción de etapas coloreadas y el comportamiento de voz y notificaciones en esta versión instalada.
 
-## Versión instalada 0.20.1
+## Versión anterior 0.20.1
 
 La versión 0.20.1 usa Tauri 2 y se instala por usuario. El identificador estable es `com.agustin1730.intervalos`; conservarlo y aumentar la versión en `src-tauri/Cargo.toml` y `src-tauri/tauri.conf.json` permite instalar una actualización sobre la versión anterior sin cambiar el almacén local.
 
