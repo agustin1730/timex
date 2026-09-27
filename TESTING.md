@@ -11,7 +11,7 @@ Elegí pruebas por el código afectado. Documentá resultados reales y pendiente
 | Voz, avisos, bandeja o ciclo de ventana | Pruebas anteriores, pruebas Rust pertinentes y recorrido en Tauri instalado |
 | Cuenta o sincronización | `tests/sync*.test.ts`, pruebas de aislamiento/conflicto y prueba con servicio real cuando esté configurado |
 
-Tests actuales: `tests/timer.test.ts`, `storage.test.ts`, `sequence.test.ts`, `sequence-timeline.test.ts`, `announcer.test.ts` y `sync*.test.ts`. Los dobles de prueba no certifican voz audible, notificaciones nativas ni retorno real de Google. El workflow `.github/workflows/windows-0.22.0.yml` compila una rama específica; aún no es un control general de todos los PR.
+Tests actuales: `tests/timer.test.ts`, `storage.test.ts`, `sequence.test.ts`, `sequence-timeline.test.ts`, `announcer.test.ts` y `sync*.test.ts`. Los dobles de prueba no certifican voz audible, notificaciones nativas ni retorno real de Google. El workflow `.github/workflows/windows-0.22.1.yml` compila una rama específica; aún no es un control general de todos los PR.
 
 ## Recorridos que protegen el producto
 

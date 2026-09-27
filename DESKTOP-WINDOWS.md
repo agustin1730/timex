@@ -1,5 +1,9 @@
 # Intervalos para Windows
 
+## Versión candidata 0.22.1: control del widget en el reproductor
+
+El botón **Mostrar/Ocultar mini widget** está junto a los controles de reproducción del temporizador y la secuencia, solo en Windows. Ya no ocupa el menú lateral. Funciona durante una sesión activa o pausada y refleja si la ventana del widget está visible, incluso después de cerrarla con la X. Se conserva la preferencia local de la versión anterior; no cambia el formato de temporizadores ni secuencias.
+
 ## Versión candidata 0.22.0: mini widget opcional
 
 El mini widget de Windows se activa en el menú lateral (apagado por defecto) y aparece al iniciar una sesión. Muestra la etapa, el tiempo restante y Anterior/Pausar/Siguiente. Usa el color de la etapa; las transiciones de secuencia permanecen grises. La X lo oculta durante esa sesión; puede volver a mostrarse desde la bandeja o cambiando el interruptor. Al finalizar la sesión se oculta automáticamente. La voz sigue activa; las notificaciones de etapa se omiten mientras el widget está visible y vuelven en etapas futuras al ocultarlo.
