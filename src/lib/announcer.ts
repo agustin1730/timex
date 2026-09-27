@@ -14,13 +14,83 @@ export type DesktopBridge = {
   setRunning?: (running: boolean) => void;
 };
 
+export type NativeNotice = {
+  delayMs: number;
+  voiceText?: string;
+  notificationTitle?: string;
+  notificationBody?: string;
+  finalNotice: boolean;
+};
+
+export type NativeStage = {
+  duration: number;
+  stageName: string;
+  context: string;
+  voice: boolean;
+  notifications: boolean;
+};
+
+export function nativeSchedule(
+  stages: NativeStage[],
+  currentIndex: number,
+  currentRemaining: number,
+  finished: { title: string; body: string; voice: boolean; notifications: boolean },
+): NativeNotice[] {
+  const current = stages[currentIndex];
+  if (!current) return [];
+  const notices: NativeNotice[] = [];
+  let delayMs = 0;
+  for (let index = currentIndex; index < stages.length; index++) {
+    const stage = stages[index]!;
+    notices.push({
+      delayMs,
+      finalNotice: false,
+      ...(stage.voice ? { voiceText: stage.stageName } : {}),
+      ...(stage.notifications
+        ? { notificationTitle: `Etapa: ${stage.stageName}`, notificationBody: stage.context }
+        : {}),
+    });
+    delayMs += Math.round((index === currentIndex ? currentRemaining : stage.duration) * 1000);
+  }
+  notices.push({
+    delayMs,
+    finalNotice: true,
+    ...(finished.voice ? { voiceText: finished.title } : {}),
+    ...(finished.notifications
+      ? { notificationTitle: finished.title, notificationBody: finished.body }
+      : {}),
+  });
+  return notices;
+}
+
 declare global {
   interface Window {
     desktopTimer?: DesktopBridge;
   }
 }
 
-export const hasDesktopLayer = () => typeof window !== "undefined" && Boolean(window.desktopTimer);
+export const hasDesktopLayer = () =>
+  typeof window !== "undefined" &&
+  (Boolean(window.desktopTimer) || "__TAURI_INTERNALS__" in window);
+
+const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+
+let nativeQueue = Promise.resolve<unknown>(undefined);
+
+function nativeCall(command: string, args?: Record<string, unknown>) {
+  if (!isTauri()) return;
+  nativeQueue = nativeQueue.then(() => invoke(command, args)).catch(() => undefined);
+}
+
+export function replaceNativeSchedule(notices: NativeNotice[]) {
+  nativeCall("replace_native_schedule", { notices });
+}
+
+export function reportSessionStatus(status: "idle" | "running" | "paused" | "finished") {
+  nativeCall("set_session_status", { status });
+  if (status === "running" || status === "idle")
+    window.desktopTimer?.setRunning?.(status === "running");
+}
 
 export function speak(text: string) {
   if (typeof window === "undefined") return;
@@ -40,12 +110,20 @@ export function speak(text: string) {
 
 export function stopSpeaking() {
   if (typeof window === "undefined") return;
+  nativeCall("stop_native_voice");
   window.desktopTimer?.stopSpeaking?.();
   window.speechSynthesis?.cancel();
 }
 
 export async function requestNotificationPermission() {
   if (typeof window === "undefined") return false;
+  if (isTauri()) {
+    try {
+      return await invoke<boolean>("native_notifications_available");
+    } catch {
+      return false;
+    }
+  }
   if (window.desktopTimer?.notify) return true;
   if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
@@ -72,5 +150,6 @@ export function notify(title: string, body: string) {
 }
 
 export function reportRunning(running: boolean) {
-  window.desktopTimer?.setRunning?.(running);
+  reportSessionStatus(running ? "running" : "idle");
 }
+import { invoke } from "@tauri-apps/api/core";

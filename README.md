@@ -131,3 +131,7 @@ TypeScript, compilación y las 21 pruebas de regresión pasan; ESLint tiene cero
 errores y seis advertencias preexistentes de Fast Refresh.
 
 Proyecto conectado a [Lovable](https://lovable.dev/projects/4229b463-a795-47b6-9440-aa1660bf3ddf). Los cambios integrados en main se sincronizan con Lovable; conservar el historial publicado.
+
+## Cuenta opcional y uso offline
+
+La configuración de Google/Supabase, el almacenamiento por cuenta y los resultados de pruebas están en [ACCOUNT-SYNC.md](ACCOUNT-SYNC.md). Sin esas variables la aplicación mantiene el modo local. Para probar producción: `npm run build` y `npm run preview` (http://127.0.0.1:4173). La preparación de Tauri para Windows está en DESKTOP-WINDOWS.md; Android sigue pendiente.

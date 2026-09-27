@@ -1,3 +1,4 @@
+import { useAccount } from "@/hooks/use-account";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Timer, ListOrdered, PanelLeftClose, PanelLeftOpen, Menu, UserRound } from "lucide-react";
@@ -11,6 +12,7 @@ import {
 } from "@/components/ui/sheet";
 
 export function AppNavigation({ children }: { children: ReactNode }) {
+  const accountState = useAccount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: (state) => state.location.pathname });
@@ -26,7 +28,12 @@ export function AppNavigation({ children }: { children: ReactNode }) {
   const links = (compact: boolean, mobile = false) => (
     <nav aria-label="Secciones" className="space-y-2">
       {[
-        { to: "/" as const, name: "Temporizadores", Icon: Timer, active: !sequences },
+        {
+          to: "/" as const,
+          name: "Temporizadores",
+          Icon: Timer,
+          active: !sequences && path !== "/account",
+        },
         { to: "/sequences" as const, name: "Secuencias", Icon: ListOrdered, active: sequences },
       ].map(({ to, name, Icon, active }) => (
         <Link
@@ -49,20 +56,24 @@ export function AppNavigation({ children }: { children: ReactNode }) {
   );
   const account = (compact: boolean) => (
     <div className="mt-auto border-t border-border pt-4">
-      <button
-        disabled
-        aria-label="Cuenta — Próximamente"
-        title="Cuenta — Próximamente"
-        className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-muted-foreground/60 ${compact ? "justify-center" : ""}`}
+      <Link
+        to="/account"
+        onClick={() => setMobileOpen(false)}
+        aria-label="Cuenta"
+        title="Cuenta"
+        aria-current={path === "/account" ? "page" : undefined}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 ${path === "/account" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"} ${compact ? "justify-center" : ""}`}
       >
         <UserRound className="h-5 w-5 shrink-0" aria-hidden="true" />
         {!compact && (
-          <span className="text-left">
+          <span className="min-w-0 text-left">
             <span className="block">Cuenta</span>
-            <span className="block text-xs">Próximamente</span>
+            <span className="block truncate text-xs">
+              {accountState.user ? accountState.status : "Sin cuenta"}
+            </span>
           </span>
         )}
-      </button>
+      </Link>
     </div>
   );
   return (

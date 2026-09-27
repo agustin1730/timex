@@ -199,6 +199,7 @@ function ItemCard({
 function SequenceEditor() {
   const { sequenceId } = Route.useParams();
   const router = useRouter();
+  const baseline = useRef<SequencePreset | undefined>(undefined);
   const [sequence, setSequence] = useState<SequencePreset | null>(null);
   const [timers, setTimers] = useState<TimerPreset[]>([]);
   const [timerId, setTimerId] = useState("");
@@ -208,7 +209,8 @@ function SequenceEditor() {
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     try {
-      setSequence(loadSequences().find((s) => s.id === sequenceId) ?? null);
+      baseline.current = loadSequences().find((s) => s.id === sequenceId);
+      setSequence(baseline.current ?? null);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -235,8 +237,9 @@ function SequenceEditor() {
   const issues = validateSequence(sequence, timers);
   const save = () => {
     try {
-      upsertSequence(sequence);
-      setSequence(loadSequences().find((s) => s.id === sequence.id)!);
+      upsertSequence(sequence, baseline.current);
+      baseline.current = loadSequences().find((s) => s.id === sequence.id);
+      setSequence(baseline.current!);
       setSaved(true);
       setError("");
       return true;

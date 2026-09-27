@@ -1,8 +1,12 @@
+import { stageColor, type StageColor } from "./stage-colors.ts";
+
 export type Stage = {
   id: string;
   name: string;
   /** duración en segundos */
   duration: number;
+  /** Optional for timers saved before stage colors existed. */
+  color?: StageColor;
 };
 
 export type Block = {
@@ -60,9 +64,11 @@ export type Step = {
   repeatIndex: number;
   repeatTotal: number;
   duration: number;
+  color: StageColor;
 };
 
-export const uid = () => Math.random().toString(36).slice(2, 10);
+export const uid = () =>
+  globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2, 10);
 
 export function expandTimer(timer: TimerPreset): Step[] {
   const steps: Step[] = [];
@@ -79,6 +85,7 @@ export function expandTimer(timer: TimerPreset): Step[] {
           repeatIndex: r + 1,
           repeatTotal: repeats,
           duration: stage.duration,
+          color: stageColor(stage.color),
         });
       });
     }

@@ -1,8 +1,21 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowUp, Clock, Copy, Play, Plus, Save, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Check,
+  Clock,
+  Copy,
+  Play,
+  Plus,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { requestNotificationPermission } from "@/lib/announcer";
+import { stageColor, stageColorPalette, stageColors } from "@/lib/stage-colors";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,10 +64,13 @@ function Editor() {
   const { timerId } = Route.useParams();
   const router = useRouter();
   const [timer, setTimer] = useState<TimerPreset | null>(null);
+  const baseline = useRef<TimerPreset | undefined>(undefined);
+  const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setTimer(getTimer(timerId) ?? null);
+    baseline.current = getTimer(timerId);
+    setTimer(baseline.current ?? null);
   }, [timerId]);
 
   if (!timer) {
@@ -81,8 +97,17 @@ function Editor() {
   const issues = validateTimer(timer);
 
   const save = () => {
-    upsertTimer(timer);
-    setSaved(true);
+    try {
+      upsertTimer(timer, baseline.current);
+      baseline.current = getTimer(timer.id);
+      setTimer(baseline.current ?? timer);
+      setSaved(true);
+      setError("");
+      return true;
+    } catch (e) {
+      setError((e as Error).message);
+      return false;
+    }
   };
 
   return (
@@ -113,14 +138,18 @@ function Editor() {
           <Button
             disabled={issues.length > 0}
             onClick={() => {
-              upsertTimer(timer);
-              router.navigate({ to: "/play/$timerId", params: { timerId: timer.id } });
+              if (save()) router.navigate({ to: "/play/$timerId", params: { timerId: timer.id } });
             }}
           >
             <Play className="mr-1 h-4 w-4" /> Iniciar
           </Button>
         </div>
       </header>
+      {error && (
+        <p role="alert" className="mt-4 text-destructive">
+          {error}
+        </p>
+      )}
 
       <section className="panel mt-6 flex flex-wrap items-center gap-6 p-4">
         <div className="flex items-center gap-3">
@@ -233,6 +262,8 @@ function Editor() {
 
               <div className="mt-4 space-y-2">
                 {block.stages.map((stage, si) => {
+                  const color = stageColor(stage.color);
+                  const palette = stageColorPalette[color];
                   const minutes = Math.floor(stage.duration / 60);
                   const seconds = stage.duration % 60;
                   const setDuration = (m: number, s: number) =>
@@ -244,7 +275,8 @@ function Editor() {
                   return (
                     <div
                       key={stage.id}
-                      className="flex flex-wrap items-end gap-2 rounded-lg bg-surface-strong p-3"
+                      className="flex flex-wrap items-end gap-2 rounded-lg border-l-4 p-3 text-foreground"
+                      style={{ backgroundColor: palette.tint, borderLeftColor: palette.solid }}
                     >
                       <div className="min-w-40 flex-1">
                         <Label className="text-xs uppercase text-muted-foreground">
@@ -283,6 +315,65 @@ function Editor() {
                           className="mt-1"
                         />
                       </div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="shrink-0"
+                            aria-label={`Color de etapa ${si + 1}: ${palette.label}`}
+                            title={`Color de etapa: ${palette.label}`}
+                          >
+                            <span
+                              className="size-6 rounded-full border border-white/20"
+                              style={{ backgroundColor: palette.solid }}
+                            />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="end"
+                          side="top"
+                          className="w-auto max-w-[calc(100vw-2rem)] p-3"
+                        >
+                          <p className="mb-2 text-sm font-medium">Color de etapa</p>
+                          <div
+                            className="flex flex-wrap gap-2"
+                            role="group"
+                            aria-label={`Color de etapa ${si + 1}`}
+                          >
+                            {stageColors.map((option) => {
+                              const swatch = stageColorPalette[option];
+                              return (
+                                <PopoverClose asChild key={option}>
+                                  <button
+                                    type="button"
+                                    className="flex size-8 items-center justify-center rounded-full border-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                    style={{
+                                      backgroundColor: swatch.solid,
+                                      borderColor: color === option ? "white" : "transparent",
+                                      color: swatch.ink,
+                                    }}
+                                    aria-label={swatch.label}
+                                    aria-pressed={color === option}
+                                    title={swatch.label}
+                                    onClick={() =>
+                                      patchBlock(bi, {
+                                        stages: block.stages.map((item, index) =>
+                                          index === si ? { ...item, color: option } : item,
+                                        ),
+                                      })
+                                    }
+                                  >
+                                    {color === option && (
+                                      <Check className="size-4" aria-hidden="true" />
+                                    )}
+                                  </button>
+                                </PopoverClose>
+                              );
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                       <Button
                         size="icon"
                         variant="ghost"

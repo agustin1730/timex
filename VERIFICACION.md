@@ -76,3 +76,7 @@ de la aplicación nativa y del equipo pertenece a la matriz de escritorio.
 No se certifican notificaciones nativas, voz con la ventana oculta, bandeja ni
 instalador. Ver `DESKTOP-WINDOWS.md` para pruebas pendientes.
 Las secuencias de varios temporizadores siguen expresamente fuera de alcance.
+
+### Ampliación: cuenta y sincronización
+
+Ver [ACCOUNT-SYNC.md](ACCOUNT-SYNC.md). Se verificó en navegador de producción la edición y persistencia al recargar con el servidor apagado y la reproducción con pausa. Se revisó Cuenta en escritorio y ventana estrecha; el aviso de falta de configuración no bloquea la biblioteca. La secuencia existente Entrenamiento lunes conserva sus tres elementos y duración 20:30. El flujo real Google/Supabase queda pendiente de las credenciales externas; las 37 pruebas incluyen simulación de dos dispositivos y RLS en PostgreSQL local.

@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as SequencesRouteImport } from './routes/sequences'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as EditorTimerIdRouteImport } from './routes/editor.$timerId'
 import { Route as PlayTimerIdRouteImport } from './routes/play.$timerId'
 import { Route as SequenceEditorSequenceIdRouteImport } from './routes/sequence-editor.$sequenceId'
@@ -21,9 +23,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SequencesRoute = SequencesRouteImport.update({
   id: '/sequences',
   path: '/sequences',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EditorTimerIdRoute = EditorTimerIdRouteImport.update({
@@ -50,7 +62,9 @@ const SequencePlaySequenceIdRoute = SequencePlaySequenceIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/sequences': typeof SequencesRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
   '/play/$timerId': typeof PlayTimerIdRoute
   '/sequence-editor/$sequenceId': typeof SequenceEditorSequenceIdRoute
@@ -58,7 +72,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/sequences': typeof SequencesRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
   '/play/$timerId': typeof PlayTimerIdRoute
   '/sequence-editor/$sequenceId': typeof SequenceEditorSequenceIdRoute
@@ -67,7 +83,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/sequences': typeof SequencesRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/editor/$timerId': typeof EditorTimerIdRoute
   '/play/$timerId': typeof PlayTimerIdRoute
   '/sequence-editor/$sequenceId': typeof SequenceEditorSequenceIdRoute
@@ -77,7 +95,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/sequences'
+    | '/auth/callback'
     | '/editor/$timerId'
     | '/play/$timerId'
     | '/sequence-editor/$sequenceId'
@@ -85,7 +105,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/sequences'
+    | '/auth/callback'
     | '/editor/$timerId'
     | '/play/$timerId'
     | '/sequence-editor/$sequenceId'
@@ -93,7 +115,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/sequences'
+    | '/auth/callback'
     | '/editor/$timerId'
     | '/play/$timerId'
     | '/sequence-editor/$sequenceId'
@@ -102,7 +126,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   SequencesRoute: typeof SequencesRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   EditorTimerIdRoute: typeof EditorTimerIdRoute
   PlayTimerIdRoute: typeof PlayTimerIdRoute
   SequenceEditorSequenceIdRoute: typeof SequenceEditorSequenceIdRoute
@@ -118,11 +144,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sequences': {
       id: '/sequences'
       path: '/sequences'
       fullPath: '/sequences'
       preLoaderRoute: typeof SequencesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/editor/$timerId': {
@@ -158,7 +198,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   SequencesRoute: SequencesRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   EditorTimerIdRoute: EditorTimerIdRoute,
   PlayTimerIdRoute: PlayTimerIdRoute,
   SequenceEditorSequenceIdRoute: SequenceEditorSequenceIdRoute,

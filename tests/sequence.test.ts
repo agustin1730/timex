@@ -75,6 +75,21 @@ test("ejemplo 21:30, 227 etapas, referencias repetidas únicas y siembra idempot
   deleteSequence(loadSequences()[0].id);
   assert.deepEqual(loadSequences(), []);
 });
+test("las etapas referenciadas llevan su color a la secuencia; transiciones usan gris", () => {
+  const { t, s } = fixture();
+  t.blocks[0].stages[0].color = "purple";
+  const steps = expandSequence(s, [t]);
+  assert.equal(steps[0].color, "purple");
+  assert.equal(steps[4].color, "gray");
+  const session = new TimelineSession(
+    steps,
+    () => 0,
+    () => {},
+    () => {},
+  );
+  t.blocks[0].stages[0].color = "blue";
+  assert.equal(session.steps[0].color, "purple");
+});
 test("tramo dos veces temporizador y transición: orden, repeticiones internas y duración", () => {
   const { t, s } = fixture();
   const grouped = groupRange(s, 0, 1, 2);

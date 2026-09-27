@@ -1,3 +1,4 @@
+import { AccountBoundary } from "@/components/account-boundary";
 import { AppNavigation } from "@/components/app-navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -127,9 +128,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <AppNavigation>
-        <Outlet />
-      </AppNavigation>
+      <AccountBoundary>
+        <AppNavigation>
+          <Outlet />
+        </AppNavigation>
+      </AccountBoundary>
     </QueryClientProvider>
   );
 }

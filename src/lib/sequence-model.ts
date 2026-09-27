@@ -194,6 +194,7 @@ export function expandSequence(s: SequencePreset, timers: TimerPreset[]): Sequen
             key: `${n.id}/${r}/${i.id}`,
             stageName: i.name,
             duration: i.duration,
+            color: "gray",
             blockName: "Transición",
             blockIndex: 0,
             repeatIndex: 1,
