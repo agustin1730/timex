@@ -15,7 +15,8 @@ Leé la sección de la función solicitada y después su código. Este mapa desc
 | Secuencias, referencias por ID, transiciones y duración | `src/lib/sequence-model.ts` |
 | Biblioteca local, carpetas, CRUD y migración de tramos antiguos | `src/lib/timer-storage.ts` |
 | Cuenta y bibliotecas separadas por usuario | `src/lib/sync/`; detalles en `ACCOUNT-SYNC.md` |
-| Reloj, pausa, salto y copia de sesión | `src/lib/timer-session.ts` |
+| Reloj web, pausa, salto y copia de sesión | `src/lib/timer-session.ts` |
+| Reloj nativo de Windows y mini widget | `src-tauri/src/native_session.rs`, `src-tauri/src/main.rs`, `public/widget.html`; puente en `src/lib/desktop-session.ts` |
 | Posición y progreso de secuencias | `src/lib/sequence-timeline.ts` |
 | Voz y avisos de navegador/Tauri | `src/lib/announcer.ts` |
 
@@ -26,7 +27,7 @@ El almacenamiento principal usa `localStorage` por origen/perfil: `interval-time
 ## Plataformas
 
 - Web: voz y notificaciones dependen del navegador y sus permisos.
-- Windows: Tauri 2 (`src-tauri/tauri.conf.json`, `src-tauri/src/main.rs`) aporta instalador NSIS, bandeja, voz y notificaciones nativas. `announcer.ts` es el puente con el reproductor. Consultá `DESKTOP-WINDOWS.md` antes de cambiar ciclo de ventana o avisos.
+- Windows: Tauri 2 aporta instalador NSIS, bandeja, voz y notificaciones nativas. El motor Rust mantiene la sesión mientras la ventana principal está oculta; el reproductor React lee su estado mediante `desktop-session.ts`. El mini widget es una segunda ventana de la misma sesión. Consultá `DESKTOP-WINDOWS.md` antes de cambiar ciclo de ventana o avisos.
 - Android: aún no existe cliente instalado. Compartir modelos y reglas de negocio; implementar y comprobar por separado los servicios de segundo plano, controles en pantalla bloqueada y voz cuando se desarrolle la app.
 
 ## Decisiones futuras, no funciones actuales

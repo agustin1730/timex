@@ -5,7 +5,6 @@ import {
   stopSpeaking,
   notify,
   requestNotificationPermission,
-  nativeSchedule,
 } from "../src/lib/announcer.ts";
 
 test("avisos web cancelan voz anterior y notifican solo con permiso", async () => {
@@ -68,24 +67,4 @@ test("permiso fallido no impide iniciar ni notificación fallida rompe motor", a
   assert.equal(await requestNotificationPermission(), false);
   Notification.permission = "granted";
   assert.doesNotThrow(() => notify("Etapa", ""));
-});
-
-test("cronograma nativo respeta el restante actual, etapas cortas y final único", () => {
-  const notices = nativeSchedule(
-    [
-      { duration: 5, stageName: "Trabajo", context: "Round 1", voice: true, notifications: true },
-      { duration: 1, stageName: "Descanso", context: "Round 1", voice: true, notifications: false },
-      { duration: 2, stageName: "Trabajo", context: "Round 2", voice: false, notifications: true },
-    ],
-    0,
-    3.5,
-    { title: "Finalizado", body: "Terminó", voice: true, notifications: true },
-  );
-  assert.deepEqual(
-    notices.map((notice) => notice.delayMs),
-    [0, 3500, 4500, 6500],
-  );
-  assert.equal(notices[1].notificationTitle, undefined);
-  assert.equal(notices[2].voiceText, undefined);
-  assert.equal(notices.filter((notice) => notice.finalNotice).length, 1);
 });

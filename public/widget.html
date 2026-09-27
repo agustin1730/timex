@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mini widget de Intervalos</title>
+    <style>
+      :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #141b23; }
+      * { box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+      body { border: 1px solid #34404c; border-left: 4px solid var(--stage, #89929f); border-radius: 10px; color: #f3f5f7; }
+      main { height: 100%; display: flex; flex-direction: column; padding: 9px 10px 8px; }
+      header { display: flex; align-items: center; gap: 5px; min-width: 0; }
+      #stage { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
+      button { border: 0; background: #26313d; color: #f3f5f7; cursor: pointer; }
+      button:hover { background: #354452; }
+      button:focus-visible { outline: 2px solid var(--stage, #89929f); outline-offset: 2px; }
+      button:disabled { opacity: .45; cursor: default; }
+      #close { width: 21px; height: 21px; border-radius: 5px; background: transparent; color: #aab4bf; font-size: 18px; line-height: 18px; }
+      #clock { margin: auto 0; text-align: center; font-variant-numeric: tabular-nums; font-size: 35px; font-weight: 700; line-height: 1; letter-spacing: .02em; }
+      footer { display: flex; justify-content: center; gap: 8px; }
+      footer button { width: 36px; height: 28px; border-radius: 6px; font-size: 17px; line-height: 1; }
+      #toggle { background: var(--stage, #89929f); color: #111820; }
+      #toggle:hover { filter: brightness(1.12); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><span id="stage">Etapa</span><button id="close" aria-label="Cerrar mini widget" title="Cerrar">×</button></header>
+      <div id="clock" role="timer" aria-label="Tiempo restante">0:00</div>
+      <footer>
+        <button id="previous" aria-label="Etapa anterior" title="Anterior">⏮</button>
+        <button id="toggle" aria-label="Pausar" title="Pausar">Ⅱ</button>
+        <button id="next" aria-label="Etapa siguiente" title="Siguiente">⏭</button>
+      </footer>
+    </main>
+    <script>
+      const invoke = window.__TAURI__?.core?.invoke;
+      const stage = document.getElementById('stage');
+      const clock = document.getElementById('clock');
+      const toggle = document.getElementById('toggle');
+      let current = null;
+      let busy = false;
+      const draw = (value) => {
+        current = value;
+        if (!value) return;
+        stage.textContent = value.stageName;
+        const seconds = Math.max(0, Math.ceil(value.remaining));
+        clock.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+        document.body.style.setProperty('--stage', value.color);
+        toggle.textContent = value.running ? 'Ⅱ' : '▶';
+        toggle.setAttribute('aria-label', value.running ? 'Pausar' : 'Reanudar');
+        toggle.title = value.running ? 'Pausar' : 'Reanudar';
+        for (const id of ['previous', 'toggle', 'next']) document.getElementById(id).disabled = busy || value.finished;
+      };
+      const refresh = async () => {
+        if (!invoke || busy) return;
+        try { draw(await invoke('desktop_session_state', { sessionId: null })); }
+        catch (error) { console.error('No se pudo leer la sesión', error); }
+      };
+      const control = async (action) => {
+        if (!invoke || !current || busy) return;
+        busy = true;
+        draw(current);
+        try { draw(await invoke('desktop_control', { sessionId: current.id, action })); }
+        catch (error) { console.error('No se pudo controlar la sesión', error); }
+        finally { busy = false; await refresh(); }
+      };
+      document.getElementById('previous').onclick = () => control('previous');
+      document.getElementById('next').onclick = () => control('next');
+      toggle.onclick = () => control(current?.running ? 'pause' : 'resume');
+      document.getElementById('close').onclick = () => invoke?.('widget_dismiss');
+      refresh();
+      setInterval(refresh, 100);
+    </script>
+  </body>
+</html>
