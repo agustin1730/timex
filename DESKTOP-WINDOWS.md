@@ -35,13 +35,13 @@ Comandos disponibles:
 - `npm run desktop:build`: genera el ejecutable y el instalador NSIS.
 - `npm run desktop:info`: muestra el diagnóstico del entorno.
 
-El instalador de esta versión es `src-tauri/target/release/bundle/nsis/Intervalos_0.20.1_x64-setup.exe`. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
+El instalador 0.22.0 se genera en `src-tauri/target/release/bundle/nsis/Intervalos_0.22.0_x64-setup.exe`. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
 
 ## Comportamiento de escritorio implementado
 
 - Voz mediante el motor de texto a voz de Windows, con preferencia por una voz en español disponible.
 - Notificaciones nativas al comenzar cada etapa y una notificación al terminar toda la sesión.
-- Una programación nativa de avisos por sesión, independiente del temporizador JavaScript de la interfaz. Al pausar, reiniciar o saltar de etapa se cancela la programación anterior para evitar avisos duplicados o atrasados.
+- Una sesión nativa controla reloj, avisos y widget independientemente del temporizador JavaScript de la interfaz. Al pausar, reiniciar o saltar de etapa se cancela el aviso anterior para evitar duplicados o locuciones atrasadas.
 - Bandeja del sistema con **Mostrar Intervalos**, estado de la sesión y **Salir**.
 - El clic normal, el doble clic y **Mostrar Intervalos** recuperan la ventana desde la bandeja.
 - Pulsar el cuerpo de una notificación o su acción **Abrir Intervalos** recupera el reproductor activo; descartar la notificación no abre la ventana.
