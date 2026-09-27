@@ -8,6 +8,7 @@
  */
 
 export type DesktopBridge = {
+  stopSpeaking?: () => void;
   speak?: (text: string) => void;
   notify?: (title: string, body: string) => void;
   setRunning?: (running: boolean) => void;
@@ -19,8 +20,7 @@ declare global {
   }
 }
 
-export const hasDesktopLayer = () =>
-  typeof window !== "undefined" && Boolean(window.desktopTimer);
+export const hasDesktopLayer = () => typeof window !== "undefined" && Boolean(window.desktopTimer);
 
 export function speak(text: string) {
   if (typeof window === "undefined") return;
@@ -40,15 +40,21 @@ export function speak(text: string) {
 
 export function stopSpeaking() {
   if (typeof window === "undefined") return;
+  window.desktopTimer?.stopSpeaking?.();
   window.speechSynthesis?.cancel();
 }
 
 export async function requestNotificationPermission() {
-  if (typeof window === "undefined" || !("Notification" in window)) return false;
+  if (typeof window === "undefined") return false;
+  if (window.desktopTimer?.notify) return true;
+  if (!("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
   if (Notification.permission === "denied") return false;
-  const result = await Notification.requestPermission();
-  return result === "granted";
+  try {
+    return (await Notification.requestPermission()) === "granted";
+  } catch {
+    return false;
+  }
 }
 
 export function notify(title: string, body: string) {
@@ -58,7 +64,11 @@ export function notify(title: string, body: string) {
     return;
   }
   if (!("Notification" in window) || Notification.permission !== "granted") return;
-  new Notification(title, { body, silent: false });
+  try {
+    new Notification(title, { body, silent: false });
+  } catch {
+    /* API no disponible en algunos navegadores. */
+  }
 }
 
 export function reportRunning(running: boolean) {

@@ -1,3 +1,4 @@
+import { sequenceDeletionWarning, folderTimerIds } from "@/lib/timer-storage";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
@@ -9,15 +10,23 @@ import {
   Pencil,
   Play,
   Plus,
-  Timer as TimerIcon,
   Trash2,
 } from "lucide-react";
 
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
   cloneTimer,
   emptyTimer,
-  expandTimer,
   formatHuman,
   totalDuration,
   type Folder,
@@ -40,7 +49,7 @@ type Search = { folder?: string };
 
 export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): Search =>
-    typeof s.folder === "string" && s.folder ? { folder: s.folder } : {},
+    typeof s["folder"] === "string" && s["folder"] ? { folder: s["folder"] } : {},
   head: () => ({
     meta: [
       { title: "Intervalos — Biblioteca de temporizadores" },
@@ -66,6 +75,15 @@ function Library() {
   const { folder: folderParam } = Route.useSearch();
   const [timers, setTimers] = useState<TimerPreset[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [folderDialog, setFolderDialog] = useState<{ id?: string; parentId: string | null } | null>(
+    null,
+  );
+  const [folderName, setFolderName] = useState("");
+  const [removal, setRemoval] = useState<{
+    id: string;
+    kind: "folder" | "timer";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     const refresh = () => {
@@ -86,8 +104,7 @@ function Library() {
   const visible = timers.filter((t) => (t.folderId ?? null) === currentId);
   const canCreateFolder = !current || current.parentId === null;
 
-  const go = (id: string | null) =>
-    router.navigate({ to: "/", search: id ? { folder: id } : {} });
+  const go = (id: string | null) => router.navigate({ to: "/", search: id ? { folder: id } : {} });
 
   const create = () => {
     const t = emptyTimer(currentId);
@@ -96,29 +113,32 @@ function Library() {
   };
 
   const newFolder = () => {
-    const name = prompt(current ? "Nombre de la subcarpeta" : "Nombre de la carpeta");
-    if (name === null) return;
-    createFolder(name, currentId);
+    setFolderName("");
+    setFolderDialog({ parentId: currentId });
   };
-
   const rename = (f: Folder) => {
-    const name = prompt("Nuevo nombre", f.name);
-    if (name) renameFolder(f.id, name);
+    setFolderName(f.name);
+    setFolderDialog({ id: f.id, parentId: f.parentId });
   };
-
   const removeFolder = (f: Folder) => {
     const c = folderContents(f.id);
-    const hasContent = c.subfolders > 0 || c.timers > 0;
-    const msg = hasContent
-      ? `¿Eliminar «${f.name}»? También se eliminarán todos los temporizadores (${c.timers}) y subcarpetas (${c.subfolders}) que contiene. Esta acción no se puede deshacer.`
-      : `¿Eliminar la carpeta vacía «${f.name}»?`;
-    if (!confirm(msg)) return;
-    deleteFolder(f.id);
-    if (currentId === f.id) go(f.parentId);
+    setRemoval({
+      id: f.id,
+      kind: "folder",
+      message:
+        "¿Eliminar «" +
+        f.name +
+        "»? También se eliminarán todos los temporizadores (" +
+        c.timers +
+        ") y subcarpetas (" +
+        c.subfolders +
+        ") que contiene. Esta acción no se puede deshacer." +
+        sequenceDeletionWarning(folderTimerIds(f.id)),
+    });
   };
 
   // Destinos posibles para mover un temporizador.
-  const locations: { id: string; label: string }[] = [{ id: "", label: "Biblioteca principal" }];
+  const locations: { id: string; label: string }[] = [{ id: "", label: "Sin carpeta" }];
   folders
     .filter((f) => f.parentId === null)
     .forEach((f) => {
@@ -130,13 +150,10 @@ function Library() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-4xl px-5 py-10">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
+      <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <TimerIcon className="h-6 w-6" />
-          </div>
           <div className="min-w-0">
-            <h1 className="truncate text-3xl font-bold uppercase tracking-wide">Intervalos</h1>
+            <h1 className="truncate text-3xl font-bold uppercase tracking-wide">Temporizadores</h1>
             <p className="truncate text-sm text-muted-foreground">
               Biblioteca de temporizadores guardados en esta computadora
             </p>
@@ -154,31 +171,38 @@ function Library() {
         </div>
       </header>
 
-      <nav
-        aria-label="Ubicación"
-        className="panel mt-8 flex flex-wrap items-center gap-1 px-3 py-2 text-sm"
-      >
-        <button
-          onClick={() => go(null)}
-          className={`flex items-center gap-1 rounded px-2 py-1 hover:bg-surface-strong ${!current ? "font-semibold text-primary" : ""}`}
+      {current && (
+        <nav
+          aria-label="Ubicación"
+          className="mb-5 flex flex-wrap items-center gap-1 text-sm text-muted-foreground"
         >
-          <Home className="h-4 w-4" /> Biblioteca principal
-        </button>
-        {parent && (
-          <>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            <button onClick={() => go(parent.id)} className="rounded px-2 py-1 hover:bg-surface-strong">
-              {parent.name}
-            </button>
-          </>
-        )}
-        {current && (
-          <>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            <span className="px-2 py-1 font-semibold text-primary">{current.name}</span>
-          </>
-        )}
-      </nav>
+          <button
+            onClick={() => go(null)}
+            className={`flex items-center gap-1 rounded px-2 py-1 hover:bg-surface-strong ${!current ? "font-semibold text-primary" : ""}`}
+          >
+            <Home className="h-4 w-4" /> Biblioteca principal
+          </button>
+          {parent && (
+            <>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <button
+                onClick={() => go(parent.id)}
+                className="rounded px-2 py-1 hover:bg-surface-strong"
+              >
+                {parent.name}
+              </button>
+            </>
+          )}
+          {current && (
+            <>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              <span className="min-w-0 break-words px-2 py-1 font-semibold text-primary">
+                {current.name}
+              </span>
+            </>
+          )}
+        </nav>
+      )}
 
       {subfolders.length > 0 && (
         <section className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -193,15 +217,18 @@ function Library() {
                   <FolderIcon className="h-5 w-5 shrink-0 text-primary" />
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{f.name}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {current ? "Subcarpeta" : "Carpeta"} · {count} temporizadores
-                    </span>
+                    <span className="block text-xs text-muted-foreground">{count}</span>
                   </span>
                 </button>
                 <Button size="icon" variant="ghost" title="Renombrar" onClick={() => rename(f)}>
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button size="icon" variant="ghost" title="Eliminar carpeta" onClick={() => removeFolder(f)}>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  title="Eliminar carpeta"
+                  onClick={() => removeFolder(f)}
+                >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </article>
@@ -217,24 +244,23 @@ function Library() {
           </p>
         )}
         {visible.map((t) => {
-          const steps = expandTimer(t);
           return (
             <article
               key={t.id}
-              className="panel grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 p-4"
+              className="panel flex flex-wrap items-center justify-between gap-4 p-4"
             >
-              <div className="min-w-0">
+              <div className="min-w-0 basis-56 flex-1">
                 <h2 className="truncate text-xl font-semibold">{t.name}</h2>
                 <p className="truncate text-sm text-muted-foreground">
-                  {formatHuman(totalDuration(t))} · {t.blocks.length} bloques · {steps.length}{" "}
-                  etapas
+                  {formatHuman(totalDuration(t))} · {t.blocks.length}{" "}
+                  {t.blocks.length === 1 ? "bloque" : "bloques"}
                 </p>
                 <label className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                   Mover a
                   <select
                     value={t.folderId ?? ""}
                     onChange={(e) => moveTimer(t.id, e.target.value || null)}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-foreground"
+                    className="min-w-0 max-w-full flex-1 rounded-md border border-input bg-background px-2 py-1 text-foreground"
                   >
                     {locations.map((l) => (
                       <option key={l.id} value={l.id}>
@@ -244,7 +270,7 @@ function Library() {
                   </select>
                 </label>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button asChild size="sm">
                   <Link to="/play/$timerId" params={{ timerId: t.id }}>
                     <Play className="mr-1 h-4 w-4" /> Iniciar
@@ -268,7 +294,13 @@ function Library() {
                   variant="ghost"
                   title="Eliminar"
                   onClick={() => {
-                    if (confirm(`¿Eliminar «${t.name}»?`)) deleteTimer(t.id);
+                    setRemoval({
+                      id: t.id,
+                      kind: "timer",
+                      message:
+                        `¿Eliminar «${t.name}»? Esta acción no se puede deshacer.` +
+                        sequenceDeletionWarning([t.id]),
+                    });
                   }}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -278,6 +310,80 @@ function Library() {
           );
         })}
       </section>
+
+      <Dialog
+        open={folderDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setFolderDialog(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {folderDialog?.id
+                ? "Renombrar carpeta"
+                : folderDialog?.parentId
+                  ? "Crear subcarpeta"
+                  : "Crear carpeta"}
+            </DialogTitle>
+            <DialogDescription>Elegí un nombre para esta ubicación.</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!folderDialog || !folderName.trim()) return;
+              if (folderDialog.id) renameFolder(folderDialog.id, folderName);
+              else createFolder(folderName, folderDialog.parentId);
+              setFolderDialog(null);
+            }}
+          >
+            <Label htmlFor="folder-name">Nombre de la carpeta</Label>
+            <Input
+              id="folder-name"
+              autoFocus
+              value={folderName}
+              onChange={(event) => setFolderName(event.target.value)}
+            />
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="secondary" onClick={() => setFolderDialog(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={!folderName.trim()}>
+                Guardar carpeta
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={removal !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoval(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación</DialogTitle>
+            <DialogDescription>{removal?.message}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button autoFocus variant="secondary" onClick={() => setRemoval(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (!removal) return;
+                if (removal.kind === "folder") deleteFolder(removal.id);
+                else deleteTimer(removal.id);
+                setRemoval(null);
+              }}
+            >
+              Eliminar definitivamente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <p className="mt-10 text-xs text-muted-foreground">
         Los datos se guardan localmente en esta computadora. Esta versión web es la base de la

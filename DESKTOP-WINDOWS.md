@@ -1,31 +1,44 @@
-# Capa de escritorio para Windows (pendiente)
+# Windows: integración y verificación pendientes
 
-Esta app web contiene toda la interfaz y la lógica del temporizador. Para el
-instalador de Windows falta agregar una capa de escritorio (Electron o Tauri)
-que envuelva esta aplicación y provea:
+Esta entrega es una aplicación web. No incluye Electron/Tauri, instalador ni
+implementación nativa del puente. Ejecutar el sitio desde un navegador en Windows
+no verifica las funciones de escritorio.
 
-1. Cerrar con la X oculta la ventana en la bandeja del sistema; el temporizador
-   sigue corriendo.
-2. Voz y notificaciones nativas de Windows aunque la ventana esté oculta.
-3. Icono de bandeja para volver a mostrar la ventana.
-4. Opción «Salir» que solo cierra si el temporizador está pausado o finalizado;
-   si está en reproducción, avisa que hay que pausarlo primero.
-5. Al salir, se detiene cualquier temporizador.
+## Contrato del puente
 
-## Puente ya preparado en el código
-
-`src/lib/announcer.ts` delega en `window.desktopTimer` si existe:
+`src/lib/announcer.ts` admite `window.desktopTimer`:
 
 ```ts
 window.desktopTimer = {
-  speak(text) {},        // voz nativa (SAPI / PowerShell / módulo TTS)
-  notify(title, body) {},// notificación nativa de Windows
-  setRunning(running) {},// informa al proceso principal si hay una cuenta activa
+  speak(text) {},
+  stopSpeaking() {}, // cancelar la locución nativa anterior, sin encolarla
+  notify(title, body) {},
+  setRunning(running) {},
 };
 ```
 
-El reproductor llama a `setRunning(true/false)` en cada arranque y pausa, de modo
-que el proceso principal puede bloquear la opción «Salir» mientras corre.
+El reproductor cancela voz al cambiar de etapa, reiniciar, pausar y abandonar la
+sesión. Informa actividad al iniciar, pausar, finalizar o desmontarse. El permiso
+del navegador no se solicita cuando el puente implementa notificaciones.
+Se verificó el contrato con dobles de prueba, no con una implementación nativa.
 
-No verificable aquí: bandeja del sistema, notificaciones nativas, ejecución en
-segundo plano con la ventana oculta y el instalador `.exe`.
+## Matriz pendiente en la aplicación de escritorio real
+
+- Notificaciones nativas habilitadas/deshabilitadas por temporizador; permisos de
+  Windows, No molestar, avisos de etapas de 1 y 2 segundos y final único.
+- Voz nativa y cancelación inmediata al cambiar de etapa, con ventana visible y
+  oculta. No acumular locuciones atrasadas.
+- Cerrar con X oculta la ventana en la bandeja y mantiene el motor ejecutándose.
+- Icono de bandeja vuelve a mostrar la ventana y refleja el estado correcto.
+- Salir solicita pausar una sesión activa; salir realmente detiene voz y motor.
+- Precisión con ventana minimizada/oculta, suspensión y reanudación del equipo.
+  Definir política de suspensión antes de prometer avisos en esos escenarios.
+- Persistencia después de cerrar el proceso, reiniciar Windows y actualizar la app.
+- Instalador, primera instalación, actualización y desinstalación; conservación
+  de datos según la política elegida.
+
+Las secuencias ya forman parte de la versión web. En Windows instalado también
+se deben probar los cruces automáticos entre temporizadores y transiciones,
+los ajustes por etapa, la cancelación de voz en etapas cortas y un solo aviso
+al finalizar toda la secuencia. La copia de sesión debe mantenerse al ocultar
+la ventana, incluso si se editan los presets guardados.

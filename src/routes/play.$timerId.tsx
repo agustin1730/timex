@@ -1,24 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  Pause,
-  Play,
-  RotateCcw,
-  SkipBack,
-  SkipForward,
-} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  expandTimer,
   formatClock,
   formatHuman,
   timerNotifications,
   timerVoice,
-  type Step,
   type TimerPreset,
 } from "@/lib/timer-model";
+import { TimerSession, type Playback } from "@/lib/timer-session";
 import { getTimer } from "@/lib/timer-storage";
 import {
   notify,
@@ -34,8 +26,7 @@ export const Route = createFileRoute("/play/$timerId")({
       { title: "Reproductor — Intervalos" },
       {
         name: "description",
-        content:
-          "Ejecutá tu temporizador por intervalos con avisos de voz y controles de etapa.",
+        content: "Ejecutá tu temporizador por intervalos con avisos de voz y controles de etapa.",
       },
       { property: "og:title", content: "Reproductor — Intervalos" },
       {
@@ -52,151 +43,125 @@ export const Route = createFileRoute("/play/$timerId")({
 function Player() {
   const { timerId } = Route.useParams();
   const [timer, setTimer] = useState<TimerPreset | null>(null);
-  const [steps, setSteps] = useState<Step[]>([]);
-  const [index, setIndex] = useState(0);
-  const [remaining, setRemaining] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [finished, setFinished] = useState(false);
-  // Ajustes de avisos congelados al abrir la sesión (una copia propia).
-  const [settings, setSettings] = useState({ voice: true, notifications: true });
-
-  // Base de tiempo real: no dependemos de la frecuencia del intervalo visual.
-  const deadlineRef = useRef<number | null>(null);
-  const announcedRef = useRef<string | null>(null);
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  const sessionRef = useRef<TimerSession | null>(null);
+  const requestRef = useRef(0);
+  const [starting, setStarting] = useState(false);
+  const [playback, setPlayback] = useState<Playback>({
+    index: 0,
+    remaining: 0,
+    running: false,
+    finished: false,
+  });
+  const { index, remaining, running, finished } = playback;
+  const steps = sessionRef.current?.steps ?? [];
+  const settings = {
+    voice: timer ? timerVoice(timer) : true,
+    notifications: timer ? timerNotifications(timer) : true,
+  };
 
   useEffect(() => {
-    // Copia profunda: editar el temporizador no altera esta sesión.
     const found = getTimer(timerId);
-    const t = found ? (JSON.parse(JSON.stringify(found)) as TimerPreset) : null;
-    setTimer(t);
-    if (t) {
-      setSettings({ voice: timerVoice(t), notifications: timerNotifications(t) });
-      const s = expandTimer(t);
-      setSteps(s);
-      setRemaining(s[0]?.duration ?? 0);
+    if (!found) {
+      setTimer(null);
+      return;
     }
-  }, [timerId]);
-
-  const announce = useCallback((step: Step) => {
-    if (announcedRef.current === step.key) return;
-    announcedRef.current = step.key;
-    stopSpeaking(); // cancela cualquier locución atrasada
-    if (settingsRef.current.voice) speak(step.stageName);
-    if (settingsRef.current.notifications)
-      notify(`Etapa: ${step.stageName}`, `${step.blockName} · repetición ${step.repeatIndex}/${step.repeatTotal}`);
-  }, []);
-
-  // Motor: un tick frecuente que recalcula contra el reloj del sistema.
-  useEffect(() => {
-    if (!running) return;
-    reportRunning(true);
+    const session = new TimerSession(
+      found,
+      () => performance.now(),
+      (step) => {
+        stopSpeaking();
+        if (timerVoice(session.timer)) speak(step.stageName);
+        if (timerNotifications(session.timer))
+          notify(
+            "Etapa: " + step.stageName,
+            step.blockName + " · repetición " + step.repeatIndex + "/" + step.repeatTotal,
+          );
+      },
+      () => {
+        stopSpeaking();
+        if (timerVoice(session.timer)) speak("Temporizador finalizado");
+        if (timerNotifications(session.timer))
+          notify("Temporizador finalizado", "El temporizador terminó.");
+        reportRunning(false);
+      },
+    );
+    sessionRef.current = session;
+    setTimer(session.timer);
+    setPlayback(session.state);
+    setStarting(false);
     const id = window.setInterval(() => {
-      const deadline = deadlineRef.current;
-      if (deadline == null) return;
-      const left = (deadline - Date.now()) / 1000;
-      if (left > 0) {
-        setRemaining(left);
-        return;
-      }
-      // avanzar (puede saltar varias etapas si la app estuvo suspendida)
-      setIndex((prev) => {
-        let next = prev + 1;
-        let overflow = -left;
-        let candidate = steps[next];
-        while (candidate && overflow >= candidate.duration) {
-          overflow -= candidate.duration;
-          next += 1;
-          candidate = steps[next];
-        }
-        const step = steps[next];
-        if (!step) {
-          deadlineRef.current = null;
-          setRunning(false);
-          setFinished(true);
-          setRemaining(0);
-          reportRunning(false);
-          if (settingsRef.current.voice) speak("Temporizador finalizado");
-          if (settingsRef.current.notifications)
-            notify("Temporizador finalizado", "La secuencia terminó.");
-          return prev;
-        }
-        deadlineRef.current = Date.now() + (step.duration - overflow) * 1000;
-        setRemaining(step.duration - overflow);
-        announce(step);
-        return next;
-      });
-    }, 200);
+      if (!session.state.running) return;
+      session.tick();
+      setPlayback(session.state);
+    }, 100);
     return () => {
       window.clearInterval(id);
+      sessionRef.current = null;
+      stopSpeaking();
       reportRunning(false);
     };
-  }, [running, steps, announce]);
+  }, [timerId]);
 
-  const goTo = useCallback(
-    (newIndex: number, keepRunning: boolean) => {
-      if (steps.length === 0) return;
-      const clamped = Math.max(0, Math.min(steps.length - 1, newIndex));
-      const step = steps[clamped];
-      if (!step) return;
-      setIndex(clamped);
-      setFinished(false);
-      setRemaining(step.duration);
-      deadlineRef.current = keepRunning ? Date.now() + step.duration * 1000 : null;
-      announcedRef.current = null;
-      if (keepRunning) announce(step);
-      else stopSpeaking();
-    },
-    [steps, announce],
-  );
-
+  const cancelPending = () => {
+    requestRef.current++;
+    setStarting(false);
+  };
   const start = async () => {
-    if (steps.length === 0) return;
-    if (settings.notifications) await requestNotificationPermission();
-    const step = steps[index];
-    const first = steps[0];
-    if (!step || !first) return;
-    if (finished) {
-      setFinished(false);
-      setIndex(0);
-      deadlineRef.current = Date.now() + first.duration * 1000;
-      setRemaining(first.duration);
-      announcedRef.current = null;
-      announce(first);
-    } else {
-      deadlineRef.current = Date.now() + remaining * 1000;
-      announce(step);
-    }
-    setRunning(true);
+    const session = sessionRef.current;
+    if (!session || !session.steps.length || session.state.running || starting) return;
+    const request = ++requestRef.current;
+    setStarting(true);
+    if (timerNotifications(session.timer)) await requestNotificationPermission();
+    if (request !== requestRef.current || session !== sessionRef.current) return;
+    setStarting(false);
+    session.start();
+    setPlayback(session.state);
+    reportRunning(session.state.running);
   };
-
   const pause = () => {
-    setRunning(false);
-    deadlineRef.current = null;
+    cancelPending();
+    const session = sessionRef.current;
+    if (!session) return;
+    session.pause();
+    setPlayback(session.state);
     stopSpeaking();
+    reportRunning(false);
   };
-
-  const reset = () => {
-    setRunning(false);
-    setFinished(false);
-    deadlineRef.current = null;
-    announcedRef.current = null;
+  const goTo = (newIndex: number) => {
+    cancelPending();
+    const session = sessionRef.current;
+    if (!session) return;
     stopSpeaking();
-    setIndex(0);
-    setRemaining(steps[0]?.duration ?? 0);
+    session.goTo(newIndex);
+    setPlayback(session.state);
+  };
+  const reset = () => {
+    cancelPending();
+    const session = sessionRef.current;
+    if (!session) return;
+    session.reset();
+    setPlayback(session.state);
+    stopSpeaking();
+    reportRunning(false);
   };
 
   // Atajos de teclado
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === "INPUT") return;
+      if (
+        e.repeat ||
+        (e.target as HTMLElement)?.closest(
+          "input, textarea, select, button, a, [contenteditable=true]",
+        )
+      )
+        return;
       if (e.code === "Space") {
         e.preventDefault();
-        running ? pause() : start();
+        if (running) pause();
+        else void start();
       }
-      if (e.code === "ArrowRight") goTo(index + 1, running);
-      if (e.code === "ArrowLeft") goTo(index - 1, running);
+      if (e.code === "ArrowRight") goTo(index + 1);
+      if (e.code === "ArrowLeft") goTo(index - 1);
       if (e.key.toLowerCase() === "r") reset();
     };
     window.addEventListener("keydown", onKey);
@@ -218,9 +183,8 @@ function Player() {
   const next = steps[index + 1];
   const elapsedBefore = steps.slice(0, index).reduce((a, s) => a + s.duration, 0);
   const total = steps.reduce((a, s) => a + s.duration, 0);
-  const elapsed = elapsedBefore + ((current?.duration ?? 0) - remaining);
+  const elapsed = finished ? total : elapsedBefore + ((current?.duration ?? 0) - remaining);
   const progress = current ? 1 - remaining / current.duration : 0;
-
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-5 py-8">
@@ -257,18 +221,18 @@ function Player() {
           />
         </div>
         <p className="text-sm text-muted-foreground">
-          {next
+          {!finished && next
             ? `Sigue: ${next.stageName} · ${formatHuman(next.duration)}`
             : "Última etapa"}
         </p>
 
         {finished && (
-          <Button size="lg" onClick={start} className="mt-2">
+          <Button size="lg" disabled={starting || !steps.length} onClick={start} className="mt-2">
             <RotateCcw className="mr-1 h-5 w-5" /> Volver a iniciar desde el principio
           </Button>
         )}
         <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <Button size="lg" variant="secondary" onClick={() => goTo(index - 1, running)}>
+          <Button size="lg" variant="secondary" onClick={() => goTo(index - 1)}>
             <SkipBack className="mr-1 h-5 w-5" /> Anterior
           </Button>
           {running ? (
@@ -276,11 +240,11 @@ function Player() {
               <Pause className="mr-1 h-5 w-5" /> Pausar
             </Button>
           ) : (
-            <Button size="lg" onClick={start}>
+            <Button size="lg" disabled={starting || !steps.length} onClick={start}>
               <Play className="mr-1 h-5 w-5" /> Iniciar
             </Button>
           )}
-          <Button size="lg" variant="secondary" onClick={() => goTo(index + 1, running)}>
+          <Button size="lg" variant="secondary" onClick={() => goTo(index + 1)}>
             Siguiente <SkipForward className="ml-1 h-5 w-5" />
           </Button>
           <Button size="lg" variant="ghost" onClick={reset}>
