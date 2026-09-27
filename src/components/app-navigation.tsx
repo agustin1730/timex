@@ -1,18 +1,8 @@
 import { useAccount } from "@/hooks/use-account";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import {
-  Timer,
-  ListOrdered,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Menu,
-  UserRound,
-  PictureInPicture2,
-} from "lucide-react";
+import { Timer, ListOrdered, PanelLeftClose, PanelLeftOpen, Menu, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { isTauriDesktop, setWidgetPreference, widgetPreference } from "@/lib/desktop-session";
 import {
   Sheet,
   SheetContent,
@@ -25,17 +15,8 @@ export function AppNavigation({ children }: { children: ReactNode }) {
   const accountState = useAccount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [desktop, setDesktop] = useState(false);
-  const [widgetEnabled, setWidgetEnabled] = useState(false);
   const path = useRouterState({ select: (state) => state.location.pathname });
   const sequences = path === "/sequences" || path.startsWith("/sequence-");
-  useEffect(() => {
-    if (!isTauriDesktop()) return;
-    setDesktop(true);
-    const enabled = widgetPreference();
-    setWidgetEnabled(enabled);
-    void setWidgetPreference(enabled).catch(console.error);
-  }, []);
   useEffect(() => {
     const query = window.matchMedia("(min-width: 768px)");
     const close = () => {
@@ -44,37 +25,6 @@ export function AppNavigation({ children }: { children: ReactNode }) {
     query.addEventListener("change", close);
     return () => query.removeEventListener("change", close);
   }, []);
-  const changeWidget = (enabled: boolean) => {
-    setWidgetEnabled(enabled);
-    void setWidgetPreference(enabled).catch(() => setWidgetEnabled(!enabled));
-  };
-  const widgetOption = (compact: boolean) =>
-    !desktop ? null : compact ? (
-      <Button
-        variant="ghost"
-        size="icon"
-        className={`min-h-11 w-full ${widgetEnabled ? "bg-primary/15 text-primary" : "text-muted-foreground"}`}
-        aria-label="Mostrar mini widget"
-        aria-pressed={widgetEnabled}
-        title="Mini widget"
-        onClick={() => changeWidget(!widgetEnabled)}
-      >
-        <PictureInPicture2 className="h-5 w-5" />
-      </Button>
-    ) : (
-      <label
-        className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-muted-foreground"
-        title="Mostrar mini widget al iniciar una sesión"
-      >
-        <PictureInPicture2 className="h-5 w-5 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1">Mini widget</span>
-        <Switch
-          checked={widgetEnabled}
-          aria-label="Mostrar mini widget"
-          onCheckedChange={changeWidget}
-        />
-      </label>
-    );
   const links = (compact: boolean, mobile = false) => (
     <nav aria-label="Secciones" className="space-y-2">
       {[
@@ -155,7 +105,6 @@ export function AppNavigation({ children }: { children: ReactNode }) {
           </Button>
         </div>
         {links(collapsed)}
-        {widgetOption(collapsed)}
         {account(collapsed)}
       </aside>
       <div className={`min-w-0 ${collapsed ? "md:pl-20" : "md:pl-60"}`}>
@@ -174,7 +123,6 @@ export function AppNavigation({ children }: { children: ReactNode }) {
                 Navegación entre temporizadores y secuencias.
               </SheetDescription>
               <div className="mt-5">{links(false, true)}</div>
-              {widgetOption(false)}
               {account(false)}
             </SheetContent>
           </Sheet>

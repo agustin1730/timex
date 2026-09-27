@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Clock, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
 import { sequenceTimeline } from "@/lib/sequence-timeline";
 import { Button } from "@/components/ui/button";
+import { PlayerWidgetButton } from "@/components/player-widget-button";
 import { loadSequences, loadTimers } from "@/lib/timer-storage";
 import { expandSequence, type SequenceStep } from "@/lib/sequence-model";
 import { TimelineSession, type Playback } from "@/lib/timer-session";
@@ -40,6 +41,7 @@ function SequencePlayer() {
     [name, setName] = useState(""),
     [error, setError] = useState(""),
     [starting, setStarting] = useState(false);
+  const [widgetVisible, setWidgetVisible] = useState(false);
   const build = () => {
     const sequence = loadSequences().find((s) => s.id === sequenceId);
     if (!sequence) throw Error("Secuencia no encontrada.");
@@ -93,6 +95,7 @@ function SequencePlayer() {
             if (native && s === sessionRef.current) {
               s.applySnapshot(native);
               setState(s.state);
+              setWidgetVisible(native.widgetVisible);
             }
           })
           .catch((error) => console.error("No se pudo leer la sesión nativa", error))
@@ -177,6 +180,7 @@ function SequencePlayer() {
         desktopStartedRef.current = true;
         session.applySnapshot(native);
         setState(session.state);
+        setWidgetVisible(native.widgetVisible);
       } else {
         session.start();
         setState(session.state);
@@ -403,6 +407,13 @@ function SequencePlayer() {
           <RotateCcw className="size-4" />
           Reiniciar
         </Button>
+        <div className="flex justify-center">
+          <PlayerWidgetButton
+            active={desktopStartedRef.current && !state.finished}
+            visible={widgetVisible}
+            onError={setError}
+          />
+        </div>
       </section>
     </main>
   );

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { PlayerWidgetButton } from "@/components/player-widget-button";
 import {
   formatClock,
   formatHuman,
@@ -59,6 +60,7 @@ function Player() {
   const desktopStartedRef = useRef(false);
   const [starting, setStarting] = useState(false);
   const [desktopError, setDesktopError] = useState("");
+  const [widgetVisible, setWidgetVisible] = useState(false);
   const [playback, setPlayback] = useState<Playback>({
     index: 0,
     remaining: 0,
@@ -116,6 +118,7 @@ function Player() {
             if (native && sessionRef.current === session) {
               session.applySnapshot(native);
               setPlayback(session.state);
+              setWidgetVisible(native.widgetVisible);
             }
           })
           .catch((error) => console.error("No se pudo leer la sesión nativa", error))
@@ -179,6 +182,7 @@ function Player() {
         desktopStartedRef.current = true;
         session.applySnapshot(native);
         setPlayback(session.state);
+        setWidgetVisible(native.widgetVisible);
       } else {
         session.start();
         setPlayback(session.state);
@@ -364,6 +368,11 @@ function Player() {
           <Button size="lg" variant="ghost" onClick={reset}>
             <RotateCcw className="mr-1 h-5 w-5" /> Reiniciar
           </Button>
+          <PlayerWidgetButton
+            active={desktopStartedRef.current && !finished}
+            visible={widgetVisible}
+            onError={setDesktopError}
+          />
         </div>
         <p className="text-xs text-muted-foreground">
           Teclado: Espacio inicia o pausa · ← → cambian de etapa · R reinicia
