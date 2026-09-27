@@ -403,11 +403,11 @@ function SequencePlayer() {
             <SkipForward className="size-4" />
           </Button>
         </div>
-        <Button variant="ghost" className="text-muted-foreground" onClick={reset}>
-          <RotateCcw className="size-4" />
-          Reiniciar
-        </Button>
-        <div className="flex justify-center">
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <Button variant="ghost" className="text-muted-foreground" onClick={reset}>
+            <RotateCcw className="size-4" />
+            Reiniciar
+          </Button>
           <PlayerWidgetButton
             active={desktopStartedRef.current && !state.finished}
             visible={widgetVisible}
