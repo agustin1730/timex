@@ -7,11 +7,15 @@ import { loadSequences, loadTimers } from "@/lib/timer-storage";
 import { expandSequence, type SequenceStep } from "@/lib/sequence-model";
 import { TimelineSession, type Playback } from "@/lib/timer-session";
 import { formatClock, formatHuman } from "@/lib/timer-model";
+import { stageColor, stageColorPalette } from "@/lib/stage-colors";
 import {
   speak,
   stopSpeaking,
   notify,
-  reportRunning,
+  hasDesktopLayer,
+  nativeSchedule,
+  replaceNativeSchedule,
+  reportSessionStatus,
   requestNotificationPermission,
 } from "@/lib/announcer";
 export const Route = createFileRoute("/sequence-play/$sequenceId")({
@@ -36,6 +40,7 @@ function SequencePlayer() {
       steps,
       () => performance.now(),
       (step) => {
+        if (hasDesktopLayer()) return;
         stopSpeaking();
         if (step.voice) speak(step.stageName);
         if (step.notifications)
@@ -45,11 +50,12 @@ function SequencePlayer() {
           );
       },
       () => {
+        if (hasDesktopLayer()) return;
         stopSpeaking();
         const last = session.steps.at(-1);
         if (last?.voice) speak("Secuencia finalizada");
         if (last?.notifications) notify("Secuencia finalizada", sequence.name);
-        reportRunning(false);
+        reportSessionStatus("finished");
       },
     );
     setName(sequence.name);
@@ -77,7 +83,7 @@ function SequencePlayer() {
       window.clearInterval(interval);
       sessionRef.current = null;
       stopSpeaking();
-      reportRunning(false);
+      reportSessionStatus("idle");
     };
     // build depende únicamente del identificador; no se recarga durante una sesión.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,6 +91,31 @@ function SequencePlayer() {
   const cancel = () => {
     requestRef.current++;
     setStarting(false);
+  };
+  const scheduleDesktop = (session: TimelineSession<SequenceStep>) => {
+    if (!hasDesktopLayer()) return;
+    const last = session.steps.at(-1);
+    replaceNativeSchedule(
+      nativeSchedule(
+        session.steps.map((step) => ({
+          duration: step.duration,
+          stageName: step.stageName,
+          context: [name, step.timerName || "Transición", step.blockName]
+            .filter(Boolean)
+            .join(" · "),
+          voice: step.voice,
+          notifications: step.notifications,
+        })),
+        session.state.index,
+        session.state.remaining,
+        {
+          title: "Secuencia finalizada",
+          body: name,
+          voice: last?.voice ?? false,
+          notifications: last?.notifications ?? false,
+        },
+      ),
+    );
   };
   const start = async () => {
     if (starting || sessionRef.current?.state.running) return;
@@ -110,7 +141,8 @@ function SequencePlayer() {
     freshRef.current = false;
     session.start();
     setState(session.state);
-    reportRunning(true);
+    if (hasDesktopLayer()) scheduleDesktop(session);
+    else reportSessionStatus("running");
   };
   const pause = () => {
     cancel();
@@ -119,7 +151,7 @@ function SequencePlayer() {
     s.pause();
     setState(s.state);
     stopSpeaking();
-    reportRunning(false);
+    reportSessionStatus("paused");
   };
   const go = (delta: number) => {
     cancel();
@@ -128,6 +160,8 @@ function SequencePlayer() {
     stopSpeaking();
     s.goTo(s.state.index + delta);
     setState(s.state);
+    if (s.state.running) scheduleDesktop(s);
+    else reportSessionStatus("paused");
   };
   const reset = () => {
     cancel();
@@ -137,7 +171,7 @@ function SequencePlayer() {
     setState(s.state);
     freshRef.current = true;
     stopSpeaking();
-    reportRunning(false);
+    reportSessionStatus("idle");
   };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -167,6 +201,7 @@ function SequencePlayer() {
     (segment) => state.index >= segment.start && state.index <= segment.end,
   );
   const active = segments[activeIndex];
+  const currentColor = stageColorPalette[stageColor(current?.color)];
   return (
     <main className="mx-auto min-h-screen w-full min-w-0 max-w-4xl px-4 py-6 md:px-6">
       <header className="flex min-w-0 items-center gap-3">
@@ -243,7 +278,10 @@ function SequencePlayer() {
       )}
       <section className="mt-8 space-y-6 text-center md:mt-12" aria-label="Reproducción">
         <div className="space-y-3">
-          <h2 className="break-words text-3xl font-semibold md:text-4xl">
+          <h2
+            className="break-words text-3xl font-semibold md:text-4xl"
+            style={{ color: state.finished ? undefined : currentColor.solid }}
+          >
             {state.finished ? "Secuencia finalizada" : (current?.stageName ?? "Cargando…")}
           </h2>
           <div className="clock-digits text-[clamp(3rem,18vw,7rem)] leading-tight tabular-nums">

@@ -1,0 +1,18 @@
+[package]
+name = "intervalos"
+version = "0.21.0"
+description = "Temporizadores y secuencias de Intervalos"
+authors = ["Intervalos"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+serde = { version = "1", features = ["derive"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-single-instance = "2"
+notify-rust = "4.18.0"
+tts = { version = "0.26.3", default-features = false }

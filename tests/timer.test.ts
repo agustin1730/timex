@@ -9,6 +9,7 @@ import {
   cloneTimer,
 } from "../src/lib/timer-model.ts";
 import { TimerSession } from "../src/lib/timer-session.ts";
+import { stageColor, stageColorPalette } from "../src/lib/stage-colors.ts";
 
 test("ejemplo: siete bloques, 113 etapas, 630 segundos y orden exacto", () => {
   const t = exampleTimer();
@@ -181,4 +182,29 @@ test("editar preset durante sesión no modifica contenido ni ajustes capturados"
   assert.equal(s.timer.voice, true);
   assert.equal(s.timer.notifications, true);
   assert.equal(s.steps[0].duration, 5);
+});
+
+test("colores antiguos, copias y sesión conservan el color correcto", () => {
+  const timer = exampleTimer();
+  assert.equal(expandTimer(timer)[0].color, "gray");
+  assert.equal(stageColor("unknown"), "gray");
+  timer.blocks[0].stages[0].color = "blue";
+  const blockCopy = cloneBlock(timer.blocks[0]);
+  const timerCopy = cloneTimer(timer);
+  assert.equal(blockCopy.stages[0].color, "blue");
+  assert.equal(timerCopy.blocks[0].stages[0].color, "blue");
+  blockCopy.stages[0].color = "red";
+  timerCopy.blocks[0].stages[0].color = "green";
+  assert.equal(timer.blocks[0].stages[0].color, "blue");
+  const session = new TimerSession(
+    timer,
+    () => 0,
+    () => {},
+    () => {},
+  );
+  timer.blocks[0].stages[0].color = "yellow";
+  assert.equal(session.steps[0].color, "blue");
+  assert.equal(session.timer.blocks[0].stages[0].color, "blue");
+  assert.equal(session.steps[1].color, "gray");
+  assert.equal(stageColorPalette.yellow.ink, "#1d1a0b");
 });

@@ -65,3 +65,20 @@ test("carpetas dos niveles, renombrar, mover, duplicar y recargar", () => {
     [c.id],
   );
 });
+
+test("un editor antiguo no sobrescribe cambios recibidos de otra sesión", () => {
+  const original = loadTimers()[0];
+  upsertTimer({ ...original, name: "Cambio remoto" });
+  assert.throws(() => upsertTimer({ ...original, name: "Borrador" }, original), /otra sesión/);
+  assert.equal(loadTimers()[0].name, "Cambio remoto");
+});
+
+test("el color de una etapa persiste sin cambiar las demás etapas", () => {
+  const timer = loadTimers()[0];
+  timer.blocks[0].stages[0].color = "orange";
+  upsertTimer(timer);
+  const reopened = loadTimers()[0];
+  assert.equal(reopened.blocks[0].stages[0].color, "orange");
+  assert.equal(reopened.blocks[0].stages[1].color, undefined);
+  assert.equal(reopened.blocks[0].stages[0].duration, 5);
+});

@@ -11,10 +11,14 @@ import {
   type TimerPreset,
 } from "@/lib/timer-model";
 import { TimerSession, type Playback } from "@/lib/timer-session";
+import { stageColor, stageColorPalette } from "@/lib/stage-colors";
 import { getTimer } from "@/lib/timer-storage";
 import {
   notify,
-  reportRunning,
+  hasDesktopLayer,
+  nativeSchedule,
+  replaceNativeSchedule,
+  reportSessionStatus,
   requestNotificationPermission,
   speak,
   stopSpeaking,
@@ -69,6 +73,7 @@ function Player() {
       found,
       () => performance.now(),
       (step) => {
+        if (hasDesktopLayer()) return;
         stopSpeaking();
         if (timerVoice(session.timer)) speak(step.stageName);
         if (timerNotifications(session.timer))
@@ -78,11 +83,12 @@ function Player() {
           );
       },
       () => {
+        if (hasDesktopLayer()) return;
         stopSpeaking();
         if (timerVoice(session.timer)) speak("Temporizador finalizado");
         if (timerNotifications(session.timer))
           notify("Temporizador finalizado", "El temporizador terminó.");
-        reportRunning(false);
+        reportSessionStatus("finished");
       },
     );
     sessionRef.current = session;
@@ -98,13 +104,37 @@ function Player() {
       window.clearInterval(id);
       sessionRef.current = null;
       stopSpeaking();
-      reportRunning(false);
+      reportSessionStatus("idle");
     };
   }, [timerId]);
 
   const cancelPending = () => {
     requestRef.current++;
     setStarting(false);
+  };
+  const scheduleDesktop = (session: TimerSession) => {
+    if (!hasDesktopLayer()) return;
+    const voice = timerVoice(session.timer);
+    const notifications = timerNotifications(session.timer);
+    replaceNativeSchedule(
+      nativeSchedule(
+        session.steps.map((step) => ({
+          duration: step.duration,
+          stageName: step.stageName,
+          context: `${step.blockName} · repetición ${step.repeatIndex}/${step.repeatTotal}`,
+          voice,
+          notifications,
+        })),
+        session.state.index,
+        session.state.remaining,
+        {
+          title: "Temporizador finalizado",
+          body: "El temporizador terminó.",
+          voice,
+          notifications,
+        },
+      ),
+    );
   };
   const start = async () => {
     const session = sessionRef.current;
@@ -116,7 +146,8 @@ function Player() {
     setStarting(false);
     session.start();
     setPlayback(session.state);
-    reportRunning(session.state.running);
+    if (hasDesktopLayer()) scheduleDesktop(session);
+    else reportSessionStatus("running");
   };
   const pause = () => {
     cancelPending();
@@ -125,7 +156,7 @@ function Player() {
     session.pause();
     setPlayback(session.state);
     stopSpeaking();
-    reportRunning(false);
+    reportSessionStatus("paused");
   };
   const goTo = (newIndex: number) => {
     cancelPending();
@@ -134,6 +165,8 @@ function Player() {
     stopSpeaking();
     session.goTo(newIndex);
     setPlayback(session.state);
+    if (session.state.running) scheduleDesktop(session);
+    else reportSessionStatus("paused");
   };
   const reset = () => {
     cancelPending();
@@ -142,7 +175,7 @@ function Player() {
     session.reset();
     setPlayback(session.state);
     stopSpeaking();
-    reportRunning(false);
+    reportSessionStatus("idle");
   };
 
   // Atajos de teclado
@@ -185,6 +218,7 @@ function Player() {
   const total = steps.reduce((a, s) => a + s.duration, 0);
   const elapsed = finished ? total : elapsedBefore + ((current?.duration ?? 0) - remaining);
   const progress = current ? 1 - remaining / current.duration : 0;
+  const currentColor = stageColorPalette[stageColor(current?.color)];
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-5 py-8">
@@ -208,7 +242,10 @@ function Player() {
             ? "Finalizado"
             : `${current?.blockName ?? ""} · repetición ${current?.repeatIndex ?? 1}/${current?.repeatTotal ?? 1}`}
         </p>
-        <h2 className="text-4xl font-bold uppercase text-primary">
+        <h2
+          className="text-4xl font-bold uppercase"
+          style={{ color: finished ? undefined : currentColor.solid }}
+        >
           {finished ? "Temporizador finalizado" : (current?.stageName ?? "—")}
         </h2>
         <div className="clock-digits text-[6rem] leading-none sm:text-[8rem]">
@@ -216,8 +253,11 @@ function Player() {
         </div>
         <div className="h-2 w-full max-w-md overflow-hidden rounded-full bg-surface-strong">
           <div
-            className="h-full bg-primary transition-[width] duration-200"
-            style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+            className="h-full transition-[width] duration-200"
+            style={{
+              width: `${Math.min(100, Math.max(0, progress * 100))}%`,
+              backgroundColor: currentColor.solid,
+            }}
           />
         </div>
         <p className="text-sm text-muted-foreground">

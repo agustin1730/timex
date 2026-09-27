@@ -1,3 +1,5 @@
+import { libraryStorage } from "./sync/local.ts";
+import { equal } from "./sync/library.ts";
 import {
   exampleSequence,
   EXAMPLE_SEQUENCE_ID,
@@ -21,15 +23,17 @@ function emit() {
 export function subscribe(listener: () => void) {
   listeners.add(listener);
   window.addEventListener("storage", listener);
+  window.addEventListener("intervalos-library", listener);
   return () => {
     listeners.delete(listener);
     window.removeEventListener("storage", listener);
+    window.removeEventListener("intervalos-library", listener);
   };
 }
 
 function readRaw(): TimerPreset[] {
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = libraryStorage.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as TimerPreset[];
     return Array.isArray(parsed) ? parsed : [];
@@ -42,18 +46,18 @@ export function loadTimers(): TimerPreset[] {
   if (typeof window === "undefined") return [];
   let timers = readRaw();
   // Se crea una única vez. Se conserva íntegro cualquier ejemplo existente.
-  if (!window.localStorage.getItem(EXAMPLE_KEY)) {
+  if (!libraryStorage.getItem(EXAMPLE_KEY)) {
     const idx = timers.findIndex((t) => t.id === EXAMPLE_ID);
     if (idx < 0) timers = [exampleTimer(), ...timers];
-    window.localStorage.setItem(KEY, JSON.stringify(timers));
-    window.localStorage.setItem(EXAMPLE_KEY, "1");
+    libraryStorage.setItem(KEY, JSON.stringify(timers));
+    libraryStorage.setItem(EXAMPLE_KEY, "1");
   }
   return timers;
 }
 
 export function saveTimers(timers: TimerPreset[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(KEY, JSON.stringify(timers));
+  libraryStorage.setItem(KEY, JSON.stringify(timers));
   emit();
 }
 
@@ -61,9 +65,13 @@ export function getTimer(id: string): TimerPreset | undefined {
   return loadTimers().find((t) => t.id === id);
 }
 
-export function upsertTimer(timer: TimerPreset) {
+export function upsertTimer(timer: TimerPreset, expected?: TimerPreset) {
   const timers = loadTimers();
   const idx = timers.findIndex((t) => t.id === timer.id);
+  if (expected && !equal(timers[idx], expected))
+    throw new Error(
+      "El temporizador cambió en otra sesión. Tu borrador sigue abierto; recargá para ver la versión actual.",
+    );
   const next = { ...timer, updatedAt: Date.now() };
   if (idx >= 0) timers[idx] = next;
   else timers.push(next);
@@ -84,7 +92,7 @@ export function moveTimer(id: string, folderId: string | null) {
 export function loadFolders(): Folder[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(FOLDERS_KEY);
+    const raw = libraryStorage.getItem(FOLDERS_KEY);
     const parsed = raw ? (JSON.parse(raw) as Folder[]) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -93,7 +101,7 @@ export function loadFolders(): Folder[] {
 }
 
 function saveFolders(folders: Folder[]) {
-  window.localStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
+  libraryStorage.setItem(FOLDERS_KEY, JSON.stringify(folders));
   emit();
 }
 
@@ -145,37 +153,37 @@ function convertSequences(sequences: SequencePreset[]) {
   const converted = sequences.map(flattenLegacyRepeats);
   if (converted.some((s, i) => s !== sequences[i])) {
     // Backup must succeed before the original value can be replaced.
-    if (!window.localStorage.getItem(SEQUENCE_BACKUP_KEY))
-      window.localStorage.setItem(SEQUENCE_BACKUP_KEY, JSON.stringify(sequences));
+    if (!libraryStorage.getItem(SEQUENCE_BACKUP_KEY))
+      libraryStorage.setItem(SEQUENCE_BACKUP_KEY, JSON.stringify(sequences));
   }
   return converted;
 }
 export function loadSequences(): SequencePreset[] {
   if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem(SEQUENCES_KEY);
+  const raw = libraryStorage.getItem(SEQUENCES_KEY);
   const parsed = raw ? JSON.parse(raw) : [];
   let sequences: SequencePreset[] = Array.isArray(parsed) ? parsed : [];
   const converted = convertSequences(sequences);
   if (converted.some((s, i) => s !== sequences[i])) {
-    window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(converted));
+    libraryStorage.setItem(SEQUENCES_KEY, JSON.stringify(converted));
     sequences = converted;
   }
-  if (!window.localStorage.getItem(SEQUENCE_EXAMPLE_KEY)) {
+  if (!libraryStorage.getItem(SEQUENCE_EXAMPLE_KEY)) {
     if (
       loadTimers().some((t) => t.id === EXAMPLE_ID) &&
       !sequences.some((s) => s.id === EXAMPLE_SEQUENCE_ID)
     )
       sequences = [exampleSequence(), ...sequences];
-    window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(sequences));
-    window.localStorage.setItem(SEQUENCE_EXAMPLE_KEY, "1");
+    libraryStorage.setItem(SEQUENCES_KEY, JSON.stringify(sequences));
+    libraryStorage.setItem(SEQUENCE_EXAMPLE_KEY, "1");
   }
   return sequences;
 }
 export function saveSequences(sequences: SequencePreset[]) {
-  window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(convertSequences(sequences)));
+  libraryStorage.setItem(SEQUENCES_KEY, JSON.stringify(convertSequences(sequences)));
   emit();
 }
-export function upsertSequence(sequence: SequencePreset) {
+export function upsertSequence(sequence: SequencePreset, expected?: SequencePreset) {
   // Un editor abierto antes de borrar un temporizador no debe restaurar referencias eliminadas.
   const valid = new Set(loadTimers().map((t) => t.id));
   const missing = sequenceItems(sequence).flatMap((i) =>
@@ -184,6 +192,10 @@ export function upsertSequence(sequence: SequencePreset) {
   const next = removeTimerReferences(sequence, missing);
   const sequences = loadSequences();
   const index = sequences.findIndex((s) => s.id === sequence.id);
+  if (expected && !equal(sequences[index], expected))
+    throw new Error(
+      "La secuencia cambió en otra sesión. Tu borrador sigue abierto; recargá para ver la versión actual.",
+    );
   if (index < 0) sequences.push(next);
   else sequences[index] = next;
   saveSequences(sequences);
@@ -202,7 +214,7 @@ function deleteTimers(ids: string[]) {
       ? removeTimerReferences(s, ids)
       : s,
   );
-  window.localStorage.setItem(SEQUENCES_KEY, JSON.stringify(sequences));
+  libraryStorage.setItem(SEQUENCES_KEY, JSON.stringify(sequences));
   saveTimers(loadTimers().filter((t) => !ids.includes(t.id)));
 }
 export function folderTimerIds(id: string) {

@@ -386,8 +386,7 @@ function Library() {
       </Dialog>
 
       <p className="mt-10 text-xs text-muted-foreground">
-        Los datos se guardan localmente en esta computadora. Esta versión web es la base de la
-        futura aplicación de escritorio para Windows.
+        Los datos se guardan localmente en esta computadora y permanecen disponibles sin conexión.
       </p>
     </main>
   );
