@@ -81,6 +81,13 @@ export class TimelineSession<S extends Step = Step> {
       finished: false,
     };
   }
+
+  /** Align the visible player with the native Windows clock after hidden-window controls. */
+  applySnapshot(snapshot: Playback) {
+    this.state = { ...snapshot };
+    this.deadline = snapshot.running ? this.now() + snapshot.remaining * 1000 : null;
+    this.announced = true;
+  }
 }
 
 export class TimerSession extends TimelineSession {

@@ -1,9 +1,9 @@
-name: Build Intervalos for Windows
+name: Build Intervalos for Windows 0.22.0
 
 on:
   push:
     branches:
-      - codex/stage-colors-windows-0.21.0
+      - codex/widget-windows-0.22.0
   workflow_dispatch:
 
 jobs:
@@ -25,10 +25,12 @@ jobs:
           npm run typecheck
           npm test
           npm run lint
+      - name: Test native playback
+        run: cargo test --manifest-path src-tauri/Cargo.toml --release
       - name: Build Windows installer
         run: npm run desktop:build
       - uses: actions/upload-artifact@v4
         with:
-          name: Intervalos-0.21.0-Windows
-          path: src-tauri/target/release/bundle/nsis/Intervalos_0.21.0_x64-setup.exe
+          name: Intervalos-0.22.0-Windows
+          path: src-tauri/target/release/bundle/nsis/Intervalos_0.22.0_x64-setup.exe
           if-no-files-found: error

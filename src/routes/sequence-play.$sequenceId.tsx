@@ -9,12 +9,18 @@ import { TimelineSession, type Playback } from "@/lib/timer-session";
 import { formatClock, formatHuman } from "@/lib/timer-model";
 import { stageColor, stageColorPalette } from "@/lib/stage-colors";
 import {
+  controlDesktopSession,
+  desktopStage,
+  isTauriDesktop,
+  readDesktopSession,
+  startDesktopSession,
+  stopDesktopSession,
+} from "@/lib/desktop-session";
+import {
   speak,
   stopSpeaking,
   notify,
   hasDesktopLayer,
-  nativeSchedule,
-  replaceNativeSchedule,
   reportSessionStatus,
   requestNotificationPermission,
 } from "@/lib/announcer";
@@ -28,6 +34,8 @@ function SequencePlayer() {
   const sessionRef = useRef<TimelineSession<SequenceStep> | null>(null);
   const freshRef = useRef(true),
     requestRef = useRef(0);
+  const desktopIdRef = useRef("");
+  const desktopStartedRef = useRef(false);
   const [state, setState] = useState(initial),
     [name, setName] = useState(""),
     [error, setError] = useState(""),
@@ -66,15 +74,32 @@ function SequencePlayer() {
   useEffect(() => {
     try {
       sessionRef.current = build();
+      desktopIdRef.current = crypto.randomUUID();
+      desktopStartedRef.current = false;
       setState(sessionRef.current.state);
     } catch (e) {
       setError((e as Error).message);
       sessionRef.current = null;
     }
     freshRef.current = true;
+    let polling = false;
     const interval = window.setInterval(() => {
       const s = sessionRef.current;
-      if (s?.state.running) {
+      if (isTauriDesktop()) {
+        if (!s || !desktopStartedRef.current || polling) return;
+        polling = true;
+        void readDesktopSession(desktopIdRef.current)
+          .then((native) => {
+            if (native && s === sessionRef.current) {
+              s.applySnapshot(native);
+              setState(s.state);
+            }
+          })
+          .catch((error) => console.error("No se pudo leer la sesión nativa", error))
+          .finally(() => {
+            polling = false;
+          });
+      } else if (s?.state.running) {
         s.tick();
         setState(s.state);
       }
@@ -82,8 +107,11 @@ function SequencePlayer() {
     return () => {
       window.clearInterval(interval);
       sessionRef.current = null;
-      stopSpeaking();
-      reportSessionStatus("idle");
+      if (isTauriDesktop()) void stopDesktopSession(desktopIdRef.current);
+      else {
+        stopSpeaking();
+        reportSessionStatus("idle");
+      }
     };
     // build depende únicamente del identificador; no se recarga durante una sesión.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,40 +120,19 @@ function SequencePlayer() {
     requestRef.current++;
     setStarting(false);
   };
-  const scheduleDesktop = (session: TimelineSession<SequenceStep>) => {
-    if (!hasDesktopLayer()) return;
-    const last = session.steps.at(-1);
-    replaceNativeSchedule(
-      nativeSchedule(
-        session.steps.map((step) => ({
-          duration: step.duration,
-          stageName: step.stageName,
-          context: [name, step.timerName || "Transición", step.blockName]
-            .filter(Boolean)
-            .join(" · "),
-          voice: step.voice,
-          notifications: step.notifications,
-        })),
-        session.state.index,
-        session.state.remaining,
-        {
-          title: "Secuencia finalizada",
-          body: name,
-          voice: last?.voice ?? false,
-          notifications: last?.notifications ?? false,
-        },
-      ),
-    );
-  };
   const start = async () => {
     if (starting || sessionRef.current?.state.running) return;
     let session = sessionRef.current;
     if (freshRef.current || session?.state.finished) {
       try {
         const index = session?.state.finished ? 0 : (session?.state.index ?? 0);
+        if (isTauriDesktop() && desktopStartedRef.current)
+          void stopDesktopSession(desktopIdRef.current);
         session = build();
         session.goTo(index);
         sessionRef.current = session;
+        desktopIdRef.current = crypto.randomUUID();
+        desktopStartedRef.current = false;
         setState(session.state);
       } catch (e) {
         setError((e as Error).message);
@@ -137,17 +144,64 @@ function SequencePlayer() {
     setStarting(true);
     if (session.steps.some((s) => s.notifications)) await requestNotificationPermission();
     if (request !== requestRef.current || sessionRef.current !== session) return;
-    setStarting(false);
-    freshRef.current = false;
-    session.start();
-    setState(session.state);
-    if (hasDesktopLayer()) scheduleDesktop(session);
-    else reportSessionStatus("running");
+    try {
+      if (isTauriDesktop()) {
+        const last = session.steps.at(-1);
+        const native = desktopStartedRef.current
+          ? await controlDesktopSession(desktopIdRef.current, "resume")
+          : await startDesktopSession({
+              id: desktopIdRef.current,
+              stages: session.steps.map((step) =>
+                desktopStage(
+                  step,
+                  [name, step.timerName || "Transición", step.blockName]
+                    .filter(Boolean)
+                    .join(" · "),
+                  step.voice,
+                  step.notifications,
+                ),
+              ),
+              index: session.state.index,
+              remaining: session.state.remaining,
+              finish: {
+                title: "Secuencia finalizada",
+                body: name,
+                voice: last?.voice ?? false,
+                notifications: last?.notifications ?? false,
+              },
+            });
+        if (request !== requestRef.current || sessionRef.current !== session) {
+          await stopDesktopSession(native.id);
+          return;
+        }
+        desktopStartedRef.current = true;
+        session.applySnapshot(native);
+        setState(session.state);
+      } else {
+        session.start();
+        setState(session.state);
+        reportSessionStatus("running");
+      }
+      freshRef.current = false;
+    } catch (e) {
+      setError(`No se pudo iniciar: ${String(e)}`);
+    } finally {
+      if (request === requestRef.current) setStarting(false);
+    }
   };
   const pause = () => {
     cancel();
     const s = sessionRef.current;
     if (!s) return;
+    if (isTauriDesktop() && desktopStartedRef.current) {
+      void controlDesktopSession(desktopIdRef.current, "pause")
+        .then((native) => {
+          s.applySnapshot(native);
+          setState(s.state);
+        })
+        .catch((e) => setError(String(e)));
+      return;
+    }
     s.pause();
     setState(s.state);
     stopSpeaking();
@@ -157,16 +211,34 @@ function SequencePlayer() {
     cancel();
     const s = sessionRef.current;
     if (!s) return;
+    if (isTauriDesktop() && desktopStartedRef.current) {
+      void controlDesktopSession(desktopIdRef.current, delta < 0 ? "previous" : "next")
+        .then((native) => {
+          s.applySnapshot(native);
+          setState(s.state);
+        })
+        .catch((e) => setError(String(e)));
+      return;
+    }
     stopSpeaking();
     s.goTo(s.state.index + delta);
     setState(s.state);
-    if (s.state.running) scheduleDesktop(s);
-    else reportSessionStatus("paused");
+    if (!s.state.running) reportSessionStatus("paused");
   };
   const reset = () => {
     cancel();
     const s = sessionRef.current;
     if (!s) return;
+    if (isTauriDesktop() && desktopStartedRef.current) {
+      void controlDesktopSession(desktopIdRef.current, "reset")
+        .then((native) => {
+          s.applySnapshot(native);
+          setState(s.state);
+          freshRef.current = true;
+        })
+        .catch((e) => setError(String(e)));
+      return;
+    }
     s.reset();
     setState(s.state);
     freshRef.current = true;
