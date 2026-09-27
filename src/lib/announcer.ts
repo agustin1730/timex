@@ -14,55 +14,6 @@ export type DesktopBridge = {
   setRunning?: (running: boolean) => void;
 };
 
-export type NativeNotice = {
-  delayMs: number;
-  voiceText?: string;
-  notificationTitle?: string;
-  notificationBody?: string;
-  finalNotice: boolean;
-};
-
-export type NativeStage = {
-  duration: number;
-  stageName: string;
-  context: string;
-  voice: boolean;
-  notifications: boolean;
-};
-
-export function nativeSchedule(
-  stages: NativeStage[],
-  currentIndex: number,
-  currentRemaining: number,
-  finished: { title: string; body: string; voice: boolean; notifications: boolean },
-): NativeNotice[] {
-  const current = stages[currentIndex];
-  if (!current) return [];
-  const notices: NativeNotice[] = [];
-  let delayMs = 0;
-  for (let index = currentIndex; index < stages.length; index++) {
-    const stage = stages[index]!;
-    notices.push({
-      delayMs,
-      finalNotice: false,
-      ...(stage.voice ? { voiceText: stage.stageName } : {}),
-      ...(stage.notifications
-        ? { notificationTitle: `Etapa: ${stage.stageName}`, notificationBody: stage.context }
-        : {}),
-    });
-    delayMs += Math.round((index === currentIndex ? currentRemaining : stage.duration) * 1000);
-  }
-  notices.push({
-    delayMs,
-    finalNotice: true,
-    ...(finished.voice ? { voiceText: finished.title } : {}),
-    ...(finished.notifications
-      ? { notificationTitle: finished.title, notificationBody: finished.body }
-      : {}),
-  });
-  return notices;
-}
-
 declare global {
   interface Window {
     desktopTimer?: DesktopBridge;
@@ -80,10 +31,6 @@ let nativeQueue = Promise.resolve<unknown>(undefined);
 function nativeCall(command: string, args?: Record<string, unknown>) {
   if (!isTauri()) return;
   nativeQueue = nativeQueue.then(() => invoke(command, args)).catch(() => undefined);
-}
-
-export function replaceNativeSchedule(notices: NativeNotice[]) {
-  nativeCall("replace_native_schedule", { notices });
 }
 
 export function reportSessionStatus(status: "idle" | "running" | "paused" | "finished") {

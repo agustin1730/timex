@@ -4,7 +4,6 @@ mod native_session;
 
 use native_session::{Session, SessionInput, Snapshot, Transition};
 use notify_rust::{Notification, NotificationResponse};
-use serde::Deserialize;
 use std::{
     sync::{Arc, Mutex},
     thread,
@@ -49,10 +48,8 @@ impl SessionStatus {
     }
 }
 
-#[derive(Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone)]
 struct ScheduledNotice {
-    delay_ms: u64,
     voice_text: Option<String>,
     notification_title: Option<String>,
     notification_body: Option<String>,
@@ -214,65 +211,6 @@ fn notification_opens_window(response: &NotificationResponse) -> bool {
         || matches!(response, NotificationResponse::Action(action) if action == "open")
 }
 
-/// Select only the most recent due notice so resume never emits a stale burst.
-fn next_due(events: &[ScheduledNotice], start: usize, elapsed_ms: u64) -> Option<usize> {
-    if start >= events.len() || events[start].delay_ms > elapsed_ms {
-        return None;
-    }
-    let mut selected = start;
-    while selected + 1 < events.len() && events[selected + 1].delay_ms <= elapsed_ms {
-        selected += 1;
-    }
-    Some(selected)
-}
-
-#[tauri::command]
-fn replace_native_schedule(
-    app: AppHandle,
-    state: State<'_, SharedState>,
-    notices: Vec<ScheduledNotice>,
-) {
-    let state = state.inner().clone();
-    let generation = {
-        let mut guard = state.lock().expect("desktop state poisoned");
-        guard.generation += 1;
-        guard.status = SessionStatus::Running;
-        if let Some(item) = guard.status_item.as_ref() {
-            let _ = item.set_text(SessionStatus::Running.label());
-        }
-        guard.generation
-    };
-    stop_voice(&state);
-    thread::spawn(move || {
-        let started = Instant::now();
-        let mut index = 0;
-        while index < notices.len() {
-            let active = state
-                .lock()
-                .map(|guard| {
-                    guard.generation == generation && guard.status == SessionStatus::Running
-                })
-                .unwrap_or(false);
-            if !active {
-                return;
-            }
-            let elapsed = started.elapsed().as_millis() as u64;
-            if let Some(due) = next_due(&notices, index, elapsed) {
-                let notice = &notices[due];
-                announce(&app, &state, notice);
-                index = due + 1;
-                if notice.final_notice {
-                    set_status(&state, SessionStatus::Finished);
-                    return;
-                }
-            } else {
-                let wait = notices[index].delay_ms.saturating_sub(elapsed).min(100);
-                thread::sleep(Duration::from_millis(wait.max(10)));
-            }
-        }
-    });
-}
-
 #[tauri::command]
 fn set_session_status(state: State<'_, SharedState>, status: String) {
     let state = state.inner();
@@ -299,7 +237,6 @@ fn native_notifications_available() -> bool {
 fn transition_notice(transition: Transition) -> ScheduledNotice {
     match transition {
         Transition::Stage(stage) => ScheduledNotice {
-            delay_ms: 0,
             voice_text: stage.voice.then_some(stage.stage_name.clone()),
             notification_title: stage
                 .notifications
@@ -308,7 +245,6 @@ fn transition_notice(transition: Transition) -> ScheduledNotice {
             final_notice: false,
         },
         Transition::Finish(finish) => ScheduledNotice {
-            delay_ms: 0,
             voice_text: finish.voice.then_some(finish.title.clone()),
             notification_title: finish.notifications.then_some(finish.title),
             notification_body: finish.notifications.then_some(finish.body),
@@ -341,6 +277,13 @@ fn spawn_desktop_worker(app: AppHandle, state: SharedState, generation: u64) {
             }
             (event, finished)
         };
+        if state
+            .lock()
+            .map(|guard| guard.generation != generation)
+            .unwrap_or(true)
+        {
+            return;
+        }
         if finished {
             let _ = widget_window(&app, &state, false);
         }
@@ -569,7 +512,6 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(managed)
         .invoke_handler(tauri::generate_handler![
-            replace_native_schedule,
             set_session_status,
             stop_native_voice,
             native_notifications_available,
@@ -712,22 +654,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn notice(delay_ms: u64) -> ScheduledNotice {
-        ScheduledNotice {
-            delay_ms,
-            voice_text: None,
-            notification_title: None,
-            notification_body: None,
-            final_notice: false,
-        }
-    }
-    #[test]
-    fn missed_notices_collapse_to_latest_due() {
-        let events = vec![notice(0), notice(1_000), notice(2_000), notice(4_000)];
-        assert_eq!(next_due(&events, 0, 0), Some(0));
-        assert_eq!(next_due(&events, 1, 3_500), Some(2));
-        assert_eq!(next_due(&events, 3, 3_500), None);
-    }
     #[test]
     fn paused_and_running_keep_window_alive() {
         assert!(SessionStatus::Running.keeps_window_alive());

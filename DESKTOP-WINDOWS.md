@@ -1,5 +1,13 @@
 # Intervalos para Windows
 
+## Versión candidata 0.22.0: mini widget opcional
+
+El mini widget de Windows se activa en el menú lateral (apagado por defecto) y aparece al iniciar una sesión. Muestra la etapa, el tiempo restante y Anterior/Pausar/Siguiente. Usa el color de la etapa; las transiciones de secuencia permanecen grises. La X lo oculta durante esa sesión; puede volver a mostrarse desde la bandeja o cambiando el interruptor. Al finalizar la sesión se oculta automáticamente. La voz sigue activa; las notificaciones de etapa se omiten mientras el widget está visible y vuelven en etapas futuras al ocultarlo.
+
+El reloj y los controles de Windows viven en `src-tauri/src/native_session.rs`, independientemente de la ventana React. El reproductor principal y el widget muestran la misma sesión. Los temporizadores y secuencias guardados no cambian de formato. El ajuste local del widget usa `intervalos.widget.enabled.v1` y no se sincroniza.
+
+Pruebas de código: ver el PR de esta versión para resultados de TypeScript, Rust, lint y compilación. **Pendiente antes de considerarla estable:** comprobar en el instalador de Windows la posición y tamaño del widget, controles con la ventana principal oculta, voz audible, supresión y retorno de notificaciones, y comportamiento al finalizar. La aprobación de estas pruebas manuales corresponde al usuario.
+
 ## Actualización 0.21.0: colores por etapa
 
 Cada etapa de temporizador admite gris (predeterminado), rojo, amarillo, verde, violeta, azul o naranja. Los temporizadores anteriores sin campo de color se muestran en gris y se conservan sin reescribirlos. El editor muestra el color como fondo suave, borde lateral y selector circular. El paso expandido de reproducción transporta el nombre estable del color, por lo que las secuencias que ejecutan un temporizador y un futuro widget de Windows pueden usarlo; las transiciones todavía no tienen selector propio. El reproductor toma una copia del color al iniciar la sesión.
