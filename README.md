@@ -1,8 +1,13 @@
-# TimeX / Intervalos
+# Time X
 
 Aplicación creada con Lovable, con React 19, TypeScript, TanStack Start y Vite.
 Esta entrega cubre temporizadores individuales, bloques, ajustes, carpetas y
 secuencias guardadas de temporizadores y transiciones.
+
+La versión actual del código es **0.23.0**. La interfaz se llama Time X; se
+conservan el identificador interno de Tauri (`com.agustin1730.intervalos`) y
+las claves locales `interval-timers.*` para mantener la biblioteca al actualizar.
+El estado operativo está resumido en [ESTADO-PROYECTO.md](docs/ESTADO-PROYECTO.md).
 
 ## Ejecución local
 
@@ -105,14 +110,20 @@ resolver dependencias al eliminar.
 ## Lovable
 
 [Proyecto en Lovable](https://lovable.dev/projects/4229b463-a795-47b6-9440-aa1660bf3ddf).
-No reescribir historial publicado. Esta carpeta de trabajo fue entregada sin `.git`;
-las modificaciones se aplican a los archivos locales y no se publican automáticamente.
+No reescribir historial publicado. Los cambios de una rama local no se publican
+automáticamente en GitHub ni en Lovable.
+
+La candidata 0.23.0 está publicada en la rama
+[`codex/time-x-settings-0.23.0`](https://github.com/agustin1730/timex/tree/codex/time-x-settings-0.23.0).
+El instalador se generó y el usuario confirmó que funciona en su equipo. El PR
+de esta rama todavía debe crearse y revisarse; un push no integra cambios en
+`main` ni los publica en Lovable.
 
 ## Navegación adaptable
 
 La barra lateral de escritorio (desde 768 px) abre expandida y permite plegar a
-íconos. Temporizadores y Secuencias muestran su sección activa también en editores
-y reproductores. Cuenta está desactivada y marcada Próximamente; no hay carpetas
+íconos. Temporizadores, Secuencias y Configuración muestran su sección activa
+también en editores y reproductores. Cuenta se abre desde Configuración; no hay carpetas
 en la barra lateral. En móvil, el botón de menú abre un panel con fondo superpuesto,
 control de foco y cierre con X, Escape, toque exterior o selección de sección.
 
@@ -134,4 +145,10 @@ Proyecto conectado a [Lovable](https://lovable.dev/projects/4229b463-a795-47b6-9
 
 ## Cuenta opcional y uso offline
 
-La configuración de Google/Supabase, el almacenamiento por cuenta y los resultados de pruebas están en [ACCOUNT-SYNC.md](ACCOUNT-SYNC.md). Sin esas variables la aplicación mantiene el modo local. Para probar producción: `npm run build` y `npm run preview` (http://127.0.0.1:4173). La preparación de Tauri para Windows está en DESKTOP-WINDOWS.md; Android sigue pendiente.
+La pantalla Configuración (`/settings`) agrupa Cuenta y Acerca de la app; indica
+la versión y plataforma, y enlaza con la cuenta opcional (`/account`). La
+configuración de Google/Supabase, el almacenamiento por cuenta y los resultados
+de pruebas están en [ACCOUNT-SYNC.md](ACCOUNT-SYNC.md). Sin variables externas,
+la aplicación mantiene el modo local. Para probar producción: `npm run build` y
+`npm run preview` (http://127.0.0.1:4173). La preparación de Tauri para Windows
+está en `DESKTOP-WINDOWS.md`; Android sigue pendiente.

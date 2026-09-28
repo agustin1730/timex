@@ -6,7 +6,7 @@ La aplicación muestra el nombre **Time X** en la interfaz, la ventana, la bande
 
 El mini widget muestra la repetición actual del bloque debajo de la etapa, por ejemplo `Repetición 3 de 15`. Este dato forma parte de la misma copia de sesión que controla el reloj y se actualiza con Anterior, Siguiente y Reiniciar. La ventana crece 14 píxeles de alto para conservar legibilidad sin dejar de ser compacta.
 
-Verificación de código: 40 pruebas web, comprobación de tipos, compilación web, lint sin errores y cuatro pruebas Rust en modo release. La pantalla Configuración se comprobó a 1440 × 900 y 390 × 844, sin desplazamiento horizontal. Pendiente para la versión candidata: instalar sobre 0.22.1 y confirmar visualmente el nombre, la biblioteca existente y la línea de repetición en el widget real.
+Verificación de código: 40 pruebas web, comprobación de tipos, compilación web, lint sin errores y cuatro pruebas Rust en modo release. La pantalla Configuración se comprobó a 1440 × 900 y 390 × 844, sin desplazamiento horizontal. `npm run desktop:build` generó `src-tauri/target/release/bundle/nsis/Time X_0.23.0_x64-setup.exe` (SHA-256 `0E3EBDEDB6DB25EE559991FA218A937E7DEFCBB99E2F51094F64F03F2F61C1D1`). El usuario instaló la candidata y confirmó que funciona. No se registró una lista de comprobación manual detallada; por eso siguen pendientes las comprobaciones específicas enumeradas al final, incluida la inspección del contador del widget en ejecución.
 
 ## Versión candidata 0.22.1: control del widget en el reproductor
 
@@ -47,16 +47,16 @@ Comandos disponibles:
 - `npm run desktop:build`: genera el ejecutable y el instalador NSIS.
 - `npm run desktop:info`: muestra el diagnóstico del entorno.
 
-El instalador 0.22.0 se genera en `src-tauri/target/release/bundle/nsis/Intervalos_0.22.0_x64-setup.exe`. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
+El instalador de la versión actual se genera en `src-tauri/target/release/bundle/nsis/Time X_0.23.0_x64-setup.exe` al ejecutar `npm run desktop:build`. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
 
 ## Comportamiento de escritorio implementado
 
 - Voz mediante el motor de texto a voz de Windows, con preferencia por una voz en español disponible.
 - Notificaciones nativas al comenzar cada etapa y una notificación al terminar toda la sesión.
 - Una sesión nativa controla reloj, avisos y widget independientemente del temporizador JavaScript de la interfaz. Al pausar, reiniciar o saltar de etapa se cancela el aviso anterior para evitar duplicados o locuciones atrasadas.
-- Bandeja del sistema con **Mostrar Intervalos**, estado de la sesión y **Salir**.
-- El clic normal, el doble clic y **Mostrar Intervalos** recuperan la ventana desde la bandeja.
-- Pulsar el cuerpo de una notificación o su acción **Abrir Intervalos** recupera el reproductor activo; descartar la notificación no abre la ventana.
+- Bandeja del sistema con **Mostrar Time X**, estado de la sesión y **Salir**.
+- El clic normal, el doble clic y **Mostrar Time X** recuperan la ventana desde la bandeja.
+- Pulsar el cuerpo de una notificación o su acción **Abrir Time X** recupera el reproductor activo; descartar la notificación no abre la ventana.
 - La aplicación admite una sola instancia: volver a abrir el acceso directo recupera la ventana existente en lugar de iniciar otra copia.
 - La X oculta la ventana cuando hay un temporizador o una secuencia en ejecución o pausada. Sin una sesión activa, la X cierra la aplicación.
 - **Salir** desde la bandeja pide confirmación si hay una sesión activa.
