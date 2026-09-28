@@ -1827,7 +1827,7 @@ dependencies = [
 
 [[package]]
 name = "intervalos"
-version = "0.24.0"
+version = "0.26.0"
 dependencies = [
  "notify-rust",
  "serde",
