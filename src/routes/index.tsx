@@ -205,7 +205,7 @@ function Library() {
           <div className="min-w-0">
             <h1 className="truncate text-3xl font-bold uppercase tracking-wide">Temporizadores</h1>
             <p className="truncate text-sm text-muted-foreground">
-              Biblioteca de temporizadores guardados en esta computadora
+              Biblioteca de temporizadores guardados en este dispositivo
             </p>
           </div>
         </div>
@@ -513,7 +513,7 @@ function Library() {
       </Dialog>
 
       <p className="mt-10 text-xs text-muted-foreground">
-        Los datos se guardan localmente en esta computadora y permanecen disponibles sin conexión.
+        Los datos se guardan localmente en este dispositivo y permanecen disponibles sin conexión.
       </p>
     </main>
   );

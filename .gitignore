@@ -39,3 +39,7 @@ dist-ssr
 dist-desktop/
 src-tauri/target/
 src-tauri/gen/
+.android-tools/
+*.jks
+*.keystore
+artifacts/

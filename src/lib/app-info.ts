@@ -1,5 +1,6 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { isTauriDesktop } from "./desktop-session";
+import { isTauriApp } from "./platform";
 
 export const APP_VERSION = "0.24.0";
 
@@ -10,7 +11,7 @@ export function platformName() {
 }
 
 export async function installedVersion() {
-  if (!isTauriDesktop()) return APP_VERSION;
+  if (!isTauriApp()) return APP_VERSION;
   try {
     return await getVersion();
   } catch {

@@ -3,8 +3,7 @@ import { stageColor, stageColorPalette } from "./stage-colors";
 import type { Step } from "./timer-model";
 import type { Playback } from "./timer-session";
 
-export const isTauriDesktop = () =>
-  typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+export { isTauriDesktop } from "./platform";
 
 const WIDGET_KEY = "intervalos.widget.enabled.v1";
 export const widgetPreference = () =>

@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { Timer, ListOrdered, PanelLeftClose, PanelLeftOpen, Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isAndroidApp } from "@/lib/platform";
 import {
   Sheet,
   SheetContent,
@@ -120,6 +121,12 @@ export function AppNavigation({ children }: { children: ReactNode }) {
           </Sheet>
           <span className="font-semibold">Time X</span>
         </header>
+        {isAndroidApp() && (
+          <p role="note" className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+            APK de prueba: mantené la app abierta y la pantalla encendida. La reproducción se pausa
+            al ocultarla. Voz y notificaciones de Android pendientes.
+          </p>
+        )}
         {children}
       </div>
     </div>

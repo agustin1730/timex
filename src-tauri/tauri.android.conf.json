@@ -1,0 +1,7 @@
+{
+  "version": "0.25.0",
+  "app": {
+    "windows": [{ "label": "main", "title": "Time X" }]
+  },
+  "bundle": { "android": { "minSdkVersion": 26 } }
+}

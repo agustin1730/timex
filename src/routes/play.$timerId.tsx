@@ -1,3 +1,5 @@
+import { useAndroidForeground } from "@/hooks/use-android-foreground";
+import { isAndroidApp } from "@/lib/platform";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
@@ -213,6 +215,8 @@ function Player() {
     stopSpeaking();
     reportSessionStatus("paused");
   };
+  useAndroidForeground(pause);
+
   const goTo = (newIndex: number) => {
     cancelPending();
     const session = sessionRef.current;
@@ -374,12 +378,12 @@ function Player() {
             onError={setDesktopError}
           />
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p hidden={isAndroidApp()} className="text-xs text-muted-foreground">
           Teclado: Espacio inicia o pausa · ← → cambian de etapa · R reinicia
         </p>
       </section>
 
-      <p className="mt-4 text-center text-xs text-muted-foreground">
+      <p hidden={isAndroidApp()} className="mt-4 text-center text-xs text-muted-foreground">
         Voz: {settings.voice ? "activada" : "desactivada"} · Notificaciones:{" "}
         {settings.notifications ? "activadas" : "desactivadas"} (se cambian en el editor)
       </p>

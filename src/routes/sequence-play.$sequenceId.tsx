@@ -1,3 +1,4 @@
+import { useAndroidForeground } from "@/hooks/use-android-foreground";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Clock, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
@@ -211,6 +212,8 @@ function SequencePlayer() {
     stopSpeaking();
     reportSessionStatus("paused");
   };
+  useAndroidForeground(pause);
+
   const go = (delta: number) => {
     cancel();
     const s = sessionRef.current;

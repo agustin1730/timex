@@ -6,8 +6,8 @@ de trabajo, prevalece `AGENTS.md`; este archivo no autoriza cambios de producto.
 
 ## Versión y entrega
 
-- Base funcional confirmada por el usuario: candidata **0.23.0**.
-- Candidata actual en preparación para Windows: **0.24.0**, rama `codex/json-timer-import-export-0.24.0`.
+- Base Windows instalada y confirmada por el usuario: **0.24.0**, incluida la importación JSON.
+- Candidata Android básica **0.25.0** en rama `codex/android-basic-apk`: ver `ANDROID.md` para alcance y estado de verificación.
 - Rama publicada: [`codex/time-x-settings-0.23.0`](https://github.com/agustin1730/timex/tree/codex/time-x-settings-0.23.0).
 - Incluye los dos commits de control del widget en reproductores de 0.22.1,
   todavía no integrados en `main`, y el commit de identidad/Configuración/widget
@@ -17,7 +17,7 @@ de trabajo, prevalece `AGENTS.md`; este archivo no autoriza cambios de producto.
   `DESKTOP-WINDOWS.md`.
 - El instalador local se generó en
   `src-tauri/target/release/bundle/nsis/Time X_0.23.0_x64-setup.exe`.
-- El usuario todavía no instaló la candidata 0.24.0. No dar por integrado el
+- El usuario instaló la candidata 0.24.0. No dar por integrado el
   cambio en `main` ni por sincronizado con Lovable hasta revisar/combinar su PR.
 
 ## Producto y plataformas

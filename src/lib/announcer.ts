@@ -7,6 +7,8 @@
  * sigan funcionando con la ventana oculta en la bandeja.
  */
 
+import { isTauriDesktop } from "./platform.ts";
+
 export type DesktopBridge = {
   stopSpeaking?: () => void;
   speak?: (text: string) => void;
@@ -21,10 +23,9 @@ declare global {
 }
 
 export const hasDesktopLayer = () =>
-  typeof window !== "undefined" &&
-  (Boolean(window.desktopTimer) || "__TAURI_INTERNALS__" in window);
+  typeof window !== "undefined" && (Boolean(window.desktopTimer) || isTauriDesktop());
 
-const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
+const isTauri = isTauriDesktop;
 
 let nativeQueue = Promise.resolve<unknown>(undefined);
 

@@ -169,7 +169,7 @@ function Editor() {
               if (v) void requestNotificationPermission();
             }}
           />
-          <Label htmlFor="t-notif">Mostrar notificaciones de Windows</Label>
+          <Label htmlFor="t-notif">Mostrar notificaciones</Label>
         </div>
       </section>
 

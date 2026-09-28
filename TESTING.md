@@ -22,4 +22,9 @@ Tests actuales: `tests/timer.test.ts`, `storage.test.ts`, `sequence.test.ts`, `s
 
 ## Publicación
 
+Android básico: ver `ANDROID.md` para la compilación y aceptación en el Poco M6 Pro.
+La prueba `tests/platform.test.ts` protege la separación entre comandos Windows y
+Android. Los recorridos con user-agent Android en Chrome solo verifican interfaz
+y lógica compartida: no equivalen a instalar y ejecutar la APK.
+
 Trabajar en una rama y presentar un PR con cambio, pruebas y riesgos. Ejecutar las comprobaciones pertinentes antes del instalador o APK. Mantener los datos y el identificador de la app durante una actualización; probar el instalador sobre una versión anterior con biblioteca existente. Entregar al usuario una versión candidata y una lista breve de acciones manuales. Solo después de su prueba tratarla como estable. Las actualizaciones automáticas y el aviso al abrir la app son requisitos futuros, no verificación actual.

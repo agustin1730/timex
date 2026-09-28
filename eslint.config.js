@@ -8,6 +8,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
+      ".android-tools",
       "dist",
       "dist-desktop",
       "src-tauri/target",
