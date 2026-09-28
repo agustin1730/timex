@@ -9,6 +9,7 @@ import {
   type SequencePreset,
 } from "./sequence-model.ts";
 import { EXAMPLE_ID, exampleTimer, uid, type Folder, type TimerPreset } from "./timer-model.ts";
+import type { TimerImportDraft } from "./timer-json.ts";
 
 const KEY = "interval-timers.v1";
 const FOLDERS_KEY = "interval-timers.folders.v1";
@@ -76,6 +77,71 @@ export function upsertTimer(timer: TimerPreset, expected?: TimerPreset) {
   if (idx >= 0) timers[idx] = next;
   else timers.push(next);
   saveTimers(timers);
+}
+
+/** Adds a validated import batch in one write, giving every record fresh IDs. */
+export function importTimerDrafts(drafts: TimerImportDraft[], folderId: string | null) {
+  const timers = loadTimers();
+  if (folderId && !loadFolders().some((folder) => folder.id === folderId))
+    throw new Error(
+      "La carpeta de destino ya no existe. Volvé a abrir la biblioteca e intentá de nuevo.",
+    );
+
+  const usedNames = new Set(
+    timers
+      .filter((timer) => (timer.folderId ?? null) === folderId)
+      .map((timer) => normalizeTimerName(timer.name)),
+  );
+  const usedIds = new Set<string>();
+  for (const timer of timers) {
+    usedIds.add(timer.id);
+    for (const block of timer.blocks) {
+      usedIds.add(block.id);
+      for (const stage of block.stages) usedIds.add(stage.id);
+    }
+  }
+  const nextId = () => {
+    let id = uid();
+    while (usedIds.has(id)) id = uid();
+    usedIds.add(id);
+    return id;
+  };
+
+  const imported = drafts.map((draft) => {
+    const name = uniqueTimerName(draft.name, usedNames);
+    return {
+      id: nextId(),
+      name,
+      updatedAt: Date.now(),
+      voice: draft.voice,
+      notifications: draft.notifications,
+      folderId,
+      blocks: draft.blocks.map((block) => ({
+        id: nextId(),
+        name: block.name,
+        repeats: block.repeats,
+        stages: block.stages.map((stage) => ({ ...stage, id: nextId() })),
+      })),
+    } satisfies TimerPreset;
+  });
+  saveTimers([...timers, ...imported]);
+  return imported;
+}
+
+function normalizeTimerName(name: string) {
+  return name.trim().normalize("NFC").toLowerCase();
+}
+
+function uniqueTimerName(name: string, usedNames: Set<string>) {
+  const base = name.trim();
+  let candidate = base;
+  let suffix = 1;
+  while (usedNames.has(normalizeTimerName(candidate))) {
+    candidate = `${base} (${suffix})`;
+    suffix += 1;
+  }
+  usedNames.add(normalizeTimerName(candidate));
+  return candidate;
 }
 
 export function deleteTimer(id: string) {

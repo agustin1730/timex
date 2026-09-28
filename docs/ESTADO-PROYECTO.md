@@ -6,7 +6,8 @@ de trabajo, prevalece `AGENTS.md`; este archivo no autoriza cambios de producto.
 
 ## Versión y entrega
 
-- Código de la candidata: **0.23.0**.
+- Base funcional confirmada por el usuario: candidata **0.23.0**.
+- Candidata actual en preparación para Windows: **0.24.0**, rama `codex/json-timer-import-export-0.24.0`.
 - Rama publicada: [`codex/time-x-settings-0.23.0`](https://github.com/agustin1730/timex/tree/codex/time-x-settings-0.23.0).
 - Incluye los dos commits de control del widget en reproductores de 0.22.1,
   todavía no integrados en `main`, y el commit de identidad/Configuración/widget
@@ -16,8 +17,8 @@ de trabajo, prevalece `AGENTS.md`; este archivo no autoriza cambios de producto.
   `DESKTOP-WINDOWS.md`.
 - El instalador local se generó en
   `src-tauri/target/release/bundle/nsis/Time X_0.23.0_x64-setup.exe`.
-- El PR de esta rama está pendiente de creación/revisión. No dar por integrado
-  el cambio en `main` ni por sincronizado con Lovable hasta que ocurra el merge.
+- El usuario todavía no instaló la candidata 0.24.0. No dar por integrado el
+  cambio en `main` ni por sincronizado con Lovable hasta revisar/combinar su PR.
 
 ## Producto y plataformas
 
@@ -28,9 +29,11 @@ actualizaciones. La versión web y Windows existen. Android es una meta futura;
 no hay una aplicación Android publicada o verificada.
 
 Temporizadores individuales, bloques, etapas coloreadas, carpetas de hasta dos
-niveles y secuencias guardadas están implementados. La importación/exportación
-completa queda para una versión posterior. No agregar secuencias ni cambios de
-esquema por inferencia: leer el pedido de la actualización vigente.
+niveles y secuencias guardadas están implementados. En 0.24.0, importar
+temporizadores se ubica en la biblioteca y exportar en cada tarjeta. La selección
+múltiple para exportar queda para después; el formato usa desde el inicio una
+lista de temporizadores para permitir esa ampliación. No agregar secuencias ni
+cambios de esquema por inferencia: leer el pedido de la actualización vigente.
 
 Windows usa Tauri 2. El motor Rust conserva la sesión cuando se oculta la ventana;
 la bandeja y el mini widget son exclusivos de Windows. El widget es opcional y
@@ -81,13 +84,31 @@ visuales de Configuración no reemplazan los ajustes por temporizador.
 
 ## Verificación de 0.23.0
 
-Resultados documentados para la candidata: `npm test` (40 pruebas),
+Resultados documentados para la candidata 0.23.0: `npm test` (40 pruebas),
 `npm run typecheck`, `npm run lint` (sin errores; seis advertencias existentes),
 `npm run build`, `cargo test --manifest-path src-tauri/Cargo.toml --release`
 (cuatro pruebas) y `npm run desktop:build` aprobados. La pantalla Configuración
-se revisó visualmente en 1440×900 y 390×844 sin desbordamiento horizontal.
+se revisó visualmente en 1440×900 y 390×844 sin desbordamiento horizontal; el
+usuario confirmó que la aplicación instalada funciona.
 
 Una prueba de navegador no verifica voz audible, notificaciones nativas,
 interacción real con la bandeja, continuidad oculta ni actualización del
 instalador. Consultar `DESKTOP-WINDOWS.md`; no declarar esos puntos aprobados
 sin la prueba instalada correspondiente.
+
+## Importación/exportación JSON 0.24.0
+
+El formato portátil `time-x-timers` incluye versión y un arreglo `timers`. Cada
+temporizador exportado omite IDs y carpeta local, e incluye nombre, bloques,
+etapas, segundos, color y ajustes de voz/notificaciones. El importador acepta un
+archivo `.json` de hasta 5 MB, máximo 500 temporizadores y hasta 100 000 etapas
+expandidas en total. Rechaza el lote entero ante cualquier registro o
+versión inválidos. Al confirmar el resumen, asigna IDs nuevos y guarda todos los
+registros en una sola operación en la carpeta abierta; los nombres en conflicto
+reciben el siguiente sufijo numérico libre. Las secuencias no cambian.
+
+Verificación de 0.24.0: `npm run typecheck`, `npm run lint` (sin errores; seis
+advertencias preexistentes), `npm run build` y `npm run desktop:build` pasaron.
+No se ejecutó la suite `npm test` ni se recorrió la importación/exportación en
+la aplicación instalada; esos comportamientos necesitan comprobación antes de
+considerar estable la candidata.

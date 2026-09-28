@@ -12,6 +12,7 @@ Leé la sección de la función solicitada y después su código. Este mapa desc
 | Necesidad | Fuente principal |
 | --- | --- |
 | Temporizador, bloques, etapas, duración y color | `src/lib/timer-model.ts`, `src/lib/stage-colors.ts` |
+| Formato portátil JSON de temporizadores | `src/lib/timer-json.ts` |
 | Secuencias, referencias por ID, transiciones y duración | `src/lib/sequence-model.ts` |
 | Biblioteca local, carpetas, CRUD y migración de tramos antiguos | `src/lib/timer-storage.ts` |
 | Cuenta y bibliotecas separadas por usuario | `src/lib/sync/`; detalles en `ACCOUNT-SYNC.md` |
@@ -20,7 +21,7 @@ Leé la sección de la función solicitada y después su código. Este mapa desc
 | Posición y progreso de secuencias | `src/lib/sequence-timeline.ts` |
 | Voz y avisos de navegador/Tauri | `src/lib/announcer.ts` |
 
-La versión visible es Time X (0.23.0). `src-tauri/tauri.conf.json` contiene el
+La versión visible es Time X (0.24.0). `src-tauri/tauri.conf.json` contiene el
 nombre y versión de producto; el identificador Tauri `com.agustin1730.intervalos`,
 el nombre de paquete Rust y las claves `interval-timers.*` permanecen históricos
 por compatibilidad con instalaciones y bibliotecas ya existentes.
@@ -34,6 +35,7 @@ El almacenamiento principal usa `localStorage` por origen/perfil: `interval-time
 - Web: voz y notificaciones dependen del navegador y sus permisos.
 - Windows: Tauri 2 aporta instalador NSIS, bandeja, voz y notificaciones nativas. El motor Rust mantiene la sesión mientras la ventana principal está oculta; el reproductor React lee su estado mediante `desktop-session.ts`. El mini widget es una segunda ventana de la misma sesión. Consultá `DESKTOP-WINDOWS.md` antes de cambiar ciclo de ventana o avisos.
 - La Configuración presenta Cuenta y Acerca de la app. `src/lib/app-info.ts` usa la versión nativa de Tauri cuando está disponible y etiqueta el entorno como Web o Windows; Android no implica que exista una app Android compilada.
+- La importación/exportación JSON solo incluye temporizadores. El codec versionado está en `timer-json.ts`; las escrituras por lote pasan por `timer-storage.ts`. La biblioteca coloca importaciones en la ubicación abierta. La exportación de una tarjeta usa el mismo formato de arreglo que permitirá añadir exportación múltiple después.
 - Android: aún no existe cliente instalado. Compartir modelos y reglas de negocio; implementar y comprobar por separado los servicios de segundo plano, controles en pantalla bloqueada y voz cuando se desarrolle la app.
 
 ## Decisiones futuras, no funciones actuales

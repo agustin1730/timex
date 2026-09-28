@@ -1,5 +1,24 @@
 # Time X para Windows
 
+## Versión candidata 0.24.0: importación y exportación JSON
+
+La biblioteca permite importar un archivo JSON de Time X desde la raíz o la
+carpeta abierta. Un archivo puede contener varios temporizadores; se valida todo
+el contenido y se pide confirmación antes de guardarlo en un solo lote. Cada
+tarjeta exporta su temporizador. La salida usa el arreglo versionado `timers`,
+preparado para una futura selección múltiple. No cambia el modelo guardado ni las
+secuencias existentes.
+
+`npm run typecheck`, `npm run lint` (sin errores; seis advertencias existentes),
+`npm run build` y `npm run desktop:build` pasaron. El instalador pesa 2 942 130
+bytes y es
+`src-tauri/target/release/bundle/nsis/Time X_0.24.0_x64-setup.exe` (SHA-256
+`B8F98994BA3B32076A48DC7F24E0C26211AF4E5B204082E0CB04D9055B71534C`). No se
+ejecutó `npm test` ni se comprobó el selector/descarga en una instalación real.
+Pendiente: probar en Windows importar, cancelar y confirmar el resumen, resolver
+un nombre repetido, cerrar/reabrir para confirmar persistencia y exportar desde
+una tarjeta; revisar también la importación/exportación web en el navegador.
+
 ## Versión candidata 0.23.0: identidad, configuración y orientación del widget
 
 La aplicación muestra el nombre **Time X** en la interfaz, la ventana, la bandeja y el instalador. Conserva el identificador `com.agustin1730.intervalos` y todas las claves locales existentes para que la actualización siga usando la biblioteca guardada. La nueva pantalla **Configuración** reúne el acceso a Cuenta y muestra la versión instalada y la plataforma.
@@ -47,7 +66,7 @@ Comandos disponibles:
 - `npm run desktop:build`: genera el ejecutable y el instalador NSIS.
 - `npm run desktop:info`: muestra el diagnóstico del entorno.
 
-El instalador de la versión actual se genera en `src-tauri/target/release/bundle/nsis/Time X_0.23.0_x64-setup.exe` al ejecutar `npm run desktop:build`. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
+El instalador de la versión actual se genera en `src-tauri/target/release/bundle/nsis/Time X_0.24.0_x64-setup.exe` al ejecutar `npm run desktop:build`. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
 
 ## Comportamiento de escritorio implementado
 

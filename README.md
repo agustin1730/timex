@@ -4,7 +4,7 @@ Aplicación creada con Lovable, con React 19, TypeScript, TanStack Start y Vite.
 Esta entrega cubre temporizadores individuales, bloques, ajustes, carpetas y
 secuencias guardadas de temporizadores y transiciones.
 
-La versión actual del código es **0.23.0**. La interfaz se llama Time X; se
+La versión actual del código es **0.24.0**. La interfaz se llama Time X; se
 conservan el identificador interno de Tauri (`com.agustin1730.intervalos`) y
 las claves locales `interval-timers.*` para mantener la biblioteca al actualizar.
 El estado operativo está resumido en [ESTADO-PROYECTO.md](docs/ESTADO-PROYECTO.md).
@@ -107,6 +107,23 @@ temporizadores individuales. `sequence-model.ts` contiene referencias, compatibi
 validación y expansión. Los datos nuevos se integran en `timer-storage.ts` para
 resolver dependencias al eliminar.
 
+## Importar y exportar temporizadores
+
+La biblioteca importa un archivo JSON de Time X desde la raíz o desde la carpeta
+abierta; cada archivo puede contener varios temporizadores. Se valida el archivo
+completo y se muestra un resumen antes de guardar. Si cualquier registro es
+inválido, no se importa ninguno. Los nuevos temporizadores se guardan en la
+ubicación abierta; si un nombre ya existe allí, se añade `(1)`, `(2)`, etc. Se
+generan IDs nuevos para el temporizador, los bloques y las etapas. No se modifican
+las secuencias existentes.
+
+Cada tarjeta permite exportar su temporizador. El formato es versionado e incluye
+un arreglo `timers`, también cuando se exporta un único elemento; así puede
+extenderse para exportar varios sin cambiar el formato. Se conservan bloques,
+etapas, color, repeticiones y ajustes de voz/notificaciones. IDs y ubicación de
+carpeta son locales y no se exportan. El codec está en `src/lib/timer-json.ts` y
+el guardado agrupado en `src/lib/timer-storage.ts`.
+
 ## Lovable
 
 [Proyecto en Lovable](https://lovable.dev/projects/4229b463-a795-47b6-9440-aa1660bf3ddf).
@@ -115,9 +132,9 @@ automáticamente en GitHub ni en Lovable.
 
 La candidata 0.23.0 está publicada en la rama
 [`codex/time-x-settings-0.23.0`](https://github.com/agustin1730/timex/tree/codex/time-x-settings-0.23.0).
-El instalador se generó y el usuario confirmó que funciona en su equipo. El PR
-de esta rama todavía debe crearse y revisarse; un push no integra cambios en
-`main` ni los publica en Lovable.
+La candidata 0.24.0, con importación/exportación JSON, está en la rama
+`codex/json-timer-import-export-0.24.0`.
+Un push no integra cambios en `main` ni los publica en Lovable.
 
 ## Navegación adaptable
 

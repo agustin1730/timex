@@ -1,7 +1,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { isTauriDesktop } from "./desktop-session";
 
-export const APP_VERSION = "0.23.0";
+export const APP_VERSION = "0.24.0";
 
 export function platformName() {
   if (typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent)) return "Android";

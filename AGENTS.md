@@ -9,7 +9,7 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-# Guía breve para trabajar en Intervalos
+# Guía breve para trabajar en Time X
 
 Un solo agente puede realizar una tarea completa. Estos archivos son instrucciones y mapas, no agentes adicionales.
 
@@ -20,4 +20,4 @@ Un solo agente puede realizar una tarea completa. Estos archivos son instruccion
 5. Seguí [TESTING.md](TESTING.md) según el riesgo del cambio. Repetí una comprobación que ya pasó solo si el código cambió o queda un riesgo concreto por resolver. Un resultado web no verifica notificaciones, voz, bandeja ni instalación de Windows. Prepará un PR con las comprobaciones; el usuario prueba la versión candidata antes de considerarla estable.
 6. Informá avances breves solo cuando haya un hallazgo, una decisión o una demora. Al cerrar, resumí cambios, pruebas reales y límites; incluí registros extensos solo si explican un error. Agrupá los ajustes de una tarea antes de subirlos. Ahorrá tokens en lecturas y explicaciones repetidas, nunca omitiendo verificaciones que protegen datos o reproducción.
 
-Estado del producto: uso local prioritario. Cuenta y sincronización tienen código preparatorio, pero requieren configuración externa y verificación real. Exportación/importación completa, Android y tiendas son trabajo futuro. No fuerces login en una función actual. Consultá [ACCOUNT-SYNC.md](ACCOUNT-SYNC.md) solo si la tarea toca cuenta o sincronización y [DESKTOP-WINDOWS.md](DESKTOP-WINDOWS.md) si toca Tauri.
+Estado del producto: uso local prioritario. Cuenta y sincronización tienen código preparatorio, pero requieren configuración externa y verificación real. La importación/exportación de temporizadores en JSON se implementa en 0.24.0; la exportación múltiple, el traslado en lote, Android y tiendas siguen pendientes. No fuerces login en una función actual. Consultá [ACCOUNT-SYNC.md](ACCOUNT-SYNC.md) solo si la tarea toca cuenta o sincronización y [DESKTOP-WINDOWS.md](DESKTOP-WINDOWS.md) si toca Tauri.

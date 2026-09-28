@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ChevronRight,
   Copy,
+  Download,
   Folder as FolderIcon,
   FolderPlus,
   Home,
@@ -11,7 +12,9 @@ import {
   Play,
   Plus,
   Trash2,
+  Upload,
 } from "lucide-react";
+import { useRef } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +40,7 @@ import {
   deleteFolder,
   deleteTimer,
   folderContents,
+  importTimerDrafts,
   loadFolders,
   loadTimers,
   moveTimer,
@@ -44,8 +48,18 @@ import {
   subscribe,
   upsertTimer,
 } from "@/lib/timer-storage";
+import {
+  downloadTimerJson,
+  MAX_TIMER_JSON_BYTES,
+  parseTimerJson,
+  type TimerImportDraft,
+} from "@/lib/timer-json";
 
 type Search = { folder?: string };
+type ImportDialogState =
+  | { kind: "review"; fileName: string; timers: TimerImportDraft[] }
+  | { kind: "error"; message: string }
+  | null;
 
 export const Route = createFileRoute("/")({
   validateSearch: (s: Record<string, unknown>): Search =>
@@ -84,6 +98,9 @@ function Library() {
     kind: "folder" | "timer";
     message: string;
   } | null>(null);
+  const importInput = useRef<HTMLInputElement>(null);
+  const [importDialog, setImportDialog] = useState<ImportDialogState>(null);
+  const [importMessage, setImportMessage] = useState("");
 
   useEffect(() => {
     const refresh = () => {
@@ -110,6 +127,39 @@ function Library() {
     const t = emptyTimer(currentId);
     upsertTimer(t);
     router.navigate({ to: "/editor/$timerId", params: { timerId: t.id } });
+  };
+
+  const readImportFile = async (file: File) => {
+    setImportMessage("");
+    try {
+      if (!file.name.toLowerCase().endsWith(".json"))
+        throw new Error("Elegí un archivo con extensión .json.");
+      if (file.size > MAX_TIMER_JSON_BYTES) throw new Error("El archivo supera el límite de 5 MB.");
+      const imported = parseTimerJson(await file.text());
+      setImportDialog({ kind: "review", fileName: file.name, timers: imported });
+    } catch (error) {
+      setImportDialog({
+        kind: "error",
+        message: error instanceof Error ? error.message : "No se pudo leer el archivo JSON.",
+      });
+    }
+  };
+
+  const confirmImport = () => {
+    if (importDialog?.kind !== "review") return;
+    try {
+      const imported = importTimerDrafts(importDialog.timers, currentId);
+      setImportMessage(
+        `Se importaron ${imported.length} ${imported.length === 1 ? "temporizador" : "temporizadores"}.`,
+      );
+      setImportDialog(null);
+    } catch (error) {
+      setImportDialog({
+        kind: "error",
+        message:
+          error instanceof Error ? error.message : "No se pudieron importar los temporizadores.",
+      });
+    }
   };
 
   const newFolder = () => {
@@ -159,17 +209,38 @@ function Library() {
             </p>
           </div>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           {canCreateFolder && (
             <Button variant="secondary" onClick={newFolder}>
               <FolderPlus className="mr-1 h-4 w-4" /> {current ? "Subcarpeta" : "Carpeta"}
             </Button>
           )}
+          <Button variant="secondary" onClick={() => importInput.current?.click()}>
+            <Upload className="mr-1 h-4 w-4" /> Importar
+          </Button>
           <Button onClick={create}>
             <Plus className="mr-1 h-4 w-4" /> Nuevo
           </Button>
         </div>
       </header>
+
+      <input
+        ref={importInput}
+        type="file"
+        accept=".json,application/json"
+        className="sr-only"
+        aria-label="Seleccionar archivo JSON de Time X"
+        onChange={(event) => {
+          const file = event.currentTarget.files?.[0];
+          event.currentTarget.value = "";
+          if (file) void readImportFile(file);
+        }}
+      />
+      {importMessage && (
+        <p role="status" className="mb-4 text-sm text-primary">
+          {importMessage}
+        </p>
+      )}
 
       {current && (
         <nav
@@ -291,6 +362,15 @@ function Library() {
                 </Button>
                 <Button
                   size="icon"
+                  variant="secondary"
+                  title={`Exportar ${t.name} a JSON`}
+                  aria-label={`Exportar ${t.name} a JSON`}
+                  onClick={() => downloadTimerJson(t)}
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
                   variant="ghost"
                   title="Eliminar"
                   onClick={() => {
@@ -310,6 +390,53 @@ function Library() {
           );
         })}
       </section>
+
+      <Dialog
+        open={importDialog !== null}
+        onOpenChange={(open) => {
+          if (!open) setImportDialog(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {importDialog?.kind === "review" ? "Confirmar importación" : "No se pudo importar"}
+            </DialogTitle>
+            <DialogDescription>
+              {importDialog?.kind === "error" && importDialog.message}
+              {importDialog?.kind === "review" && (
+                <>
+                  El archivo{" "}
+                  <span className="font-medium text-foreground">{importDialog.fileName}</span>{" "}
+                  contiene {importDialog.timers.length}{" "}
+                  {importDialog.timers.length === 1 ? "temporizador" : "temporizadores"}. Se
+                  guardarán en{" "}
+                  <span className="font-medium text-foreground">
+                    {current?.name ?? "Sin carpeta"}
+                  </span>
+                  . Si algún nombre ya existe en esa ubicación, se agregará un número entre
+                  paréntesis.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {importDialog?.kind === "review" && (
+            <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border border-border p-3 text-sm">
+              {importDialog.timers.map((timer, index) => (
+                <li key={`${index}-${timer.name}`} className="truncate">
+                  {timer.name}
+                </li>
+              ))}
+            </ul>
+          )}
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setImportDialog(null)}>
+              {importDialog?.kind === "review" ? "Cancelar" : "Cerrar"}
+            </Button>
+            {importDialog?.kind === "review" && <Button onClick={confirmImport}>Importar</Button>}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={folderDialog !== null}
