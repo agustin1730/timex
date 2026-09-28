@@ -34,12 +34,12 @@ import { getTimer, upsertTimer } from "@/lib/timer-storage";
 export const Route = createFileRoute("/editor/$timerId")({
   head: () => ({
     meta: [
-      { title: "Editor de temporizador — Intervalos" },
+      { title: "Editor de temporizador — Time X" },
       {
         name: "description",
         content: "Editá bloques, etapas, duraciones y repeticiones de tu temporizador.",
       },
-      { property: "og:title", content: "Editor de temporizador — Intervalos" },
+      { property: "og:title", content: "Editor de temporizador — Time X" },
       {
         property: "og:description",
         content: "Bloques con etapas, duraciones y repeticiones.",

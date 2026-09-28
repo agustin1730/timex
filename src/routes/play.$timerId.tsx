@@ -34,12 +34,12 @@ import {
 export const Route = createFileRoute("/play/$timerId")({
   head: () => ({
     meta: [
-      { title: "Reproductor — Intervalos" },
+      { title: "Reproductor — Time X" },
       {
         name: "description",
         content: "Ejecutá tu temporizador por intervalos con avisos de voz y controles de etapa.",
       },
-      { property: "og:title", content: "Reproductor — Intervalos" },
+      { property: "og:title", content: "Reproductor — Time X" },
       {
         property: "og:description",
         content: "Tiempo restante, etapa actual, repeticiones y controles rápidos.",

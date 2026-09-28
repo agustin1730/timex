@@ -28,7 +28,7 @@ import {
 } from "@/lib/sequence-model";
 import { formatHuman, type TimerPreset } from "@/lib/timer-model";
 export const Route = createFileRoute("/sequences")({
-  head: () => ({ meta: [{ title: "Secuencias — Intervalos" }] }),
+  head: () => ({ meta: [{ title: "Secuencias — Time X" }] }),
   component: Sequences,
 });
 function Sequences() {

@@ -1,8 +1,8 @@
 [package]
 name = "intervalos"
-version = "0.22.1"
-description = "Temporizadores y secuencias de Intervalos"
-authors = ["Intervalos"]
+version = "0.23.0"
+description = "Temporizadores y secuencias de Time X"
+authors = ["Time X"]
 edition = "2021"
 
 [build-dependencies]

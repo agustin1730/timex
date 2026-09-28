@@ -7,6 +7,8 @@ pub struct Stage {
     pub duration: u64,
     pub stage_name: String,
     pub color: String,
+    pub repeat_index: u64,
+    pub repeat_total: u64,
     pub context: String,
     pub voice: bool,
     pub notifications: bool,
@@ -40,6 +42,8 @@ pub struct Snapshot {
     pub finished: bool,
     pub stage_name: String,
     pub color: String,
+    pub repeat_index: u64,
+    pub repeat_total: u64,
     pub widget_enabled: bool,
     pub widget_visible: bool,
 }
@@ -105,6 +109,8 @@ impl Session {
             finished: self.finished,
             stage_name: step.stage_name.clone(),
             color: step.color.clone(),
+            repeat_index: step.repeat_index,
+            repeat_total: step.repeat_total,
             widget_enabled: enabled,
             widget_visible: visible,
         }
@@ -198,6 +204,8 @@ mod tests {
             duration,
             stage_name: name.into(),
             color: "gray".into(),
+            repeat_index: 1,
+            repeat_total: 3,
             context: String::new(),
             voice: true,
             notifications: true,
@@ -231,6 +239,9 @@ mod tests {
         s.control("next", now).unwrap();
         assert_eq!(s.index, 1);
         assert_eq!(s.remaining_ms, 2000);
+        let snapshot = s.snapshot(now, true, true);
+        assert_eq!(snapshot.repeat_index, 1);
+        assert_eq!(snapshot.repeat_total, 3);
         assert!(s.control("resume", now).unwrap().is_some());
         s.control("previous", now).unwrap();
         assert_eq!(s.index, 0);

@@ -1,4 +1,12 @@
-# Intervalos para Windows
+# Time X para Windows
+
+## Versión candidata 0.23.0: identidad, configuración y orientación del widget
+
+La aplicación muestra el nombre **Time X** en la interfaz, la ventana, la bandeja y el instalador. Conserva el identificador `com.agustin1730.intervalos` y todas las claves locales existentes para que la actualización siga usando la biblioteca guardada. La nueva pantalla **Configuración** reúne el acceso a Cuenta y muestra la versión instalada y la plataforma.
+
+El mini widget muestra la repetición actual del bloque debajo de la etapa, por ejemplo `Repetición 3 de 15`. Este dato forma parte de la misma copia de sesión que controla el reloj y se actualiza con Anterior, Siguiente y Reiniciar. La ventana crece 14 píxeles de alto para conservar legibilidad sin dejar de ser compacta.
+
+Verificación de código: 40 pruebas web, comprobación de tipos, compilación web, lint sin errores y cuatro pruebas Rust en modo release. La pantalla Configuración se comprobó a 1440 × 900 y 390 × 844, sin desplazamiento horizontal. Pendiente para la versión candidata: instalar sobre 0.22.1 y confirmar visualmente el nombre, la biblioteca existente y la línea de repetición en el widget real.
 
 ## Versión candidata 0.22.1: control del widget en el reproductor
 
@@ -10,7 +18,7 @@ El mini widget de Windows se activa en el menú lateral (apagado por defecto) y 
 
 El reloj y los controles de Windows viven en `src-tauri/src/native_session.rs`, independientemente de la ventana React. El reproductor principal y el widget muestran la misma sesión. Los temporizadores y secuencias guardados no cambian de formato. El ajuste local del widget usa `intervalos.widget.enabled.v1` y no se sincroniza.
 
-Pruebas de código: ver el PR de esta versión para resultados de TypeScript, Rust, lint y compilación. **Pendiente antes de considerarla estable:** comprobar en el instalador de Windows la posición y tamaño del widget, controles con la ventana principal oculta, voz audible, supresión y retorno de notificaciones, y comportamiento al finalizar. La aprobación de estas pruebas manuales corresponde al usuario.
+Pruebas de código: ver el PR de esta versión para resultados de TypeScript, Rust, lint y compilación. El usuario confirmó en la versión instalada que el widget, sus controles y el comportamiento durante la sesión funcionan correctamente.
 
 ## Actualización 0.21.0: colores por etapa
 

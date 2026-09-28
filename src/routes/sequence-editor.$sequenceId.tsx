@@ -32,7 +32,7 @@ import {
 } from "@/lib/sequence-model";
 import { uid, formatClock, formatHuman, totalDuration, type TimerPreset } from "@/lib/timer-model";
 export const Route = createFileRoute("/sequence-editor/$sequenceId")({
-  head: () => ({ meta: [{ title: "Editor de secuencia — Intervalos" }] }),
+  head: () => ({ meta: [{ title: "Editor de secuencia — Time X" }] }),
   component: SequenceEditor,
 });
 function move<T>(items: T[], index: number, delta: number) {

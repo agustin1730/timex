@@ -52,13 +52,13 @@ export const Route = createFileRoute("/")({
     typeof s["folder"] === "string" && s["folder"] ? { folder: s["folder"] } : {},
   head: () => ({
     meta: [
-      { title: "Intervalos — Biblioteca de temporizadores" },
+      { title: "Time X — Biblioteca de temporizadores" },
       {
         name: "description",
         content:
           "Creá, guardá y ejecutá temporizadores por intervalos con bloques, etapas, repeticiones y carpetas.",
       },
-      { property: "og:title", content: "Intervalos — Biblioteca de temporizadores" },
+      { property: "og:title", content: "Time X — Biblioteca de temporizadores" },
       {
         property: "og:description",
         content: "Temporizadores por intervalos con bloques, repeticiones, voz, avisos y carpetas.",

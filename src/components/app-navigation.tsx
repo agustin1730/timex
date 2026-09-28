@@ -1,7 +1,6 @@
-import { useAccount } from "@/hooks/use-account";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { Timer, ListOrdered, PanelLeftClose, PanelLeftOpen, Menu, UserRound } from "lucide-react";
+import { Timer, ListOrdered, PanelLeftClose, PanelLeftOpen, Menu, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -12,11 +11,11 @@ import {
 } from "@/components/ui/sheet";
 
 export function AppNavigation({ children }: { children: ReactNode }) {
-  const accountState = useAccount();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const path = useRouterState({ select: (state) => state.location.pathname });
   const sequences = path === "/sequences" || path.startsWith("/sequence-");
+  const settings = path === "/settings" || path === "/account";
   useEffect(() => {
     const query = window.matchMedia("(min-width: 768px)");
     const close = () => {
@@ -32,7 +31,7 @@ export function AppNavigation({ children }: { children: ReactNode }) {
           to: "/" as const,
           name: "Temporizadores",
           Icon: Timer,
-          active: !sequences && path !== "/account",
+          active: !sequences && !settings,
         },
         { to: "/sequences" as const, name: "Secuencias", Icon: ListOrdered, active: sequences },
       ].map(({ to, name, Icon, active }) => (
@@ -54,25 +53,18 @@ export function AppNavigation({ children }: { children: ReactNode }) {
       ))}
     </nav>
   );
-  const account = (compact: boolean) => (
+  const settingsLink = (compact: boolean) => (
     <div className="mt-auto border-t border-border pt-4">
       <Link
-        to="/account"
+        to="/settings"
         onClick={() => setMobileOpen(false)}
-        aria-label="Cuenta"
-        title="Cuenta"
-        aria-current={path === "/account" ? "page" : undefined}
-        className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 ${path === "/account" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary"} ${compact ? "justify-center" : ""}`}
+        aria-label="Configuración"
+        title="Configuración"
+        aria-current={settings ? "page" : undefined}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 ${settings ? "bg-primary/15 font-semibold text-primary" : "text-muted-foreground hover:bg-secondary"} ${compact ? "justify-center" : ""}`}
       >
-        <UserRound className="h-5 w-5 shrink-0" aria-hidden="true" />
-        {!compact && (
-          <span className="min-w-0 text-left">
-            <span className="block">Cuenta</span>
-            <span className="block truncate text-xs">
-              {accountState.user ? accountState.status : "Sin cuenta"}
-            </span>
-          </span>
-        )}
+        <Settings className="h-5 w-5 shrink-0" aria-hidden="true" />
+        {!compact && <span>Configuración</span>}
       </Link>
     </div>
   );
@@ -87,7 +79,7 @@ export function AppNavigation({ children }: { children: ReactNode }) {
         >
           {!collapsed && (
             <span className="text-xl font-bold uppercase tracking-wide">
-              Intervalos<span className="text-primary">.</span>
+              Time X<span className="text-primary">.</span>
             </span>
           )}
           <Button
@@ -105,7 +97,7 @@ export function AppNavigation({ children }: { children: ReactNode }) {
           </Button>
         </div>
         {links(collapsed)}
-        {account(collapsed)}
+        {settingsLink(collapsed)}
       </aside>
       <div className={`min-w-0 ${collapsed ? "md:pl-20" : "md:pl-60"}`}>
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background px-4 md:hidden">
@@ -117,16 +109,16 @@ export function AppNavigation({ children }: { children: ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="flex w-72 max-w-[85vw] flex-col px-3 pb-4 pt-12">
               <SheetTitle className="px-3 text-xl uppercase">
-                Intervalos<span className="text-primary">.</span>
+                Time X<span className="text-primary">.</span>
               </SheetTitle>
               <SheetDescription className="sr-only">
                 Navegación entre temporizadores y secuencias.
               </SheetDescription>
               <div className="mt-5">{links(false, true)}</div>
-              {account(false)}
+              {settingsLink(false)}
             </SheetContent>
           </Sheet>
-          <span className="font-semibold">Intervalos</span>
+          <span className="font-semibold">Time X</span>
         </header>
         {children}
       </div>

@@ -189,7 +189,7 @@ fn show_notification(app: &AppHandle, title: &str, body: &str) {
         .summary(title)
         .body(body)
         .app_id(&app.config().identifier)
-        .action("open", "Abrir Intervalos");
+        .action("open", "Abrir Time X");
 
     match notification.show() {
         Ok(handle) => {
@@ -474,7 +474,7 @@ fn exit_requested(app: &AppHandle, state: &SharedState) {
     if active {
         show_main(app);
         let confirmed = app.dialog().message("Hay una sesión abierta. Si salís, se detendrán el temporizador, la voz y las notificaciones.")
-            .title("Salir de Intervalos")
+            .title("Salir de Time X")
             .buttons(MessageDialogButtons::OkCancelCustom("Salir".into(), "Cancelar".into()))
             .blocking_show();
         if !confirmed {
@@ -524,15 +524,15 @@ fn main() {
         ])
         .setup(move |app| {
             WebviewWindowBuilder::new(app, "widget", WebviewUrl::App("widget.html".into()))
-                .title("Mini widget de Intervalos")
-                .inner_size(224.0, 136.0)
+                .title("Mini widget de Time X")
+                .inner_size(224.0, 150.0)
                 .resizable(false)
                 .decorations(false)
                 .always_on_top(true)
                 .skip_taskbar(true)
                 .visible(false)
                 .build()?;
-            let show = MenuItem::with_id(app, "show", "Mostrar Intervalos", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "Mostrar Time X", true, None::<&str>)?;
             let status = MenuItem::with_id(
                 app,
                 "status",
@@ -552,7 +552,7 @@ fn main() {
             let mut tray = TrayIconBuilder::new()
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .tooltip("Intervalos")
+                .tooltip("Time X")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "show" => show_main(app),
                     "widget" => {
@@ -598,7 +598,7 @@ fn main() {
             Ok(())
         })
         .build(tauri::generate_context!())
-        .expect("No se pudo iniciar Intervalos")
+        .expect("No se pudo iniciar Time X")
         .run(move |app, event| match event {
             RunEvent::WindowEvent {
                 label,
@@ -639,7 +639,7 @@ fn main() {
                     if should_notify && !widget_visible {
                         show_notification(
                             app,
-                            "Intervalos sigue funcionando",
+                            "Time X sigue funcionando",
                             "La sesión continúa en la bandeja del sistema.",
                         );
                     }

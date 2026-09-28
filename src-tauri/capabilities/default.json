@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-window",
-  "description": "Permisos mínimos de la ventana local de Intervalos",
+  "description": "Permisos mínimos de la ventana local de Time X",
   "windows": ["main", "widget"],
   "permissions": ["core:default", "notification:default", "dialog:default"]
 }

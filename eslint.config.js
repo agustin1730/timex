@@ -15,6 +15,7 @@ export default tseslint.config(
       ".output",
       ".vinxi",
       ".pr-checkout",
+      "release-*",
     ],
   },
   {

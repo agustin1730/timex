@@ -1,0 +1,36 @@
+name: Build Time X for Windows 0.23.0
+
+on:
+  push:
+    branches:
+      - codex/time-x-settings-0.23.0
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify code
+        run: |
+          npm run typecheck
+          npm test
+          npm run lint
+      - name: Test native playback
+        run: cargo test --manifest-path src-tauri/Cargo.toml --release
+      - name: Build Windows installer
+        run: npm run desktop:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Time-X-0.23.0-Windows
+          path: src-tauri/target/release/bundle/nsis/Time X_0.23.0_x64-setup.exe
+          if-no-files-found: error

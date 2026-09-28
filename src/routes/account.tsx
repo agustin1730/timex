@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,7 @@ import { useAccount } from "@/hooks/use-account";
 import { authConfigured, googleLogin } from "@/lib/sync/supabase";
 import { decide, hasPending, importGuest, logout, rereview, syncNow } from "@/lib/sync/account";
 export const Route = createFileRoute("/account")({
-  head: () => ({ meta: [{ title: "Cuenta — Intervalos" }] }),
+  head: () => ({ meta: [{ title: "Cuenta — Time X" }] }),
   component: Account,
 });
 function Account() {
@@ -30,11 +31,18 @@ function Account() {
   };
   return (
     <main className="mx-auto w-full max-w-3xl space-y-5 px-4 py-7">
+      <Link
+        to="/settings"
+        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Configuración
+      </Link>
       <h1 className="text-2xl font-semibold">Cuenta</h1>
       {!state.user ? (
         <section className="panel space-y-4 p-5">
           <p>
-            Podés usar Intervalos sin cuenta y sin conexión. Conectá Google para sincronizar tus
+            Podés usar Time X sin cuenta y sin conexión. Conectá Google para sincronizar tus
             configuraciones entre dispositivos.
           </p>
           <Button onClick={() => void attempt(googleLogin)}>Continuar con Google</Button>

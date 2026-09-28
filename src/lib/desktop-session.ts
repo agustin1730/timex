@@ -19,6 +19,8 @@ export type DesktopSnapshot = Playback & {
   id: string;
   stageName: string;
   color: string;
+  repeatIndex: number;
+  repeatTotal: number;
   widgetEnabled: boolean;
   widgetVisible: boolean;
 };
@@ -27,6 +29,8 @@ export type DesktopStage = {
   duration: number;
   stageName: string;
   color: string;
+  repeatIndex: number;
+  repeatTotal: number;
   context: string;
   voice: boolean;
   notifications: boolean;
@@ -42,6 +46,8 @@ export function desktopStage(
     duration: step.duration,
     stageName: step.stageName,
     color: stageColorPalette[stageColor(step.color)].solid,
+    repeatIndex: step.repeatIndex,
+    repeatTotal: step.repeatTotal,
     context,
     voice,
     notifications,

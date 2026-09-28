@@ -26,7 +26,7 @@ import {
   requestNotificationPermission,
 } from "@/lib/announcer";
 export const Route = createFileRoute("/sequence-play/$sequenceId")({
-  head: () => ({ meta: [{ title: "Reproductor de secuencia — Intervalos" }] }),
+  head: () => ({ meta: [{ title: "Reproductor de secuencia — Time X" }] }),
   component: SequencePlayer,
 });
 const initial: Playback = { index: 0, remaining: 0, running: false, finished: false };
