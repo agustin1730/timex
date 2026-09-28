@@ -204,21 +204,22 @@ function Library() {
         <div className="flex min-w-0 items-center gap-3">
           <div className="min-w-0">
             <h1 className="truncate text-3xl font-bold uppercase tracking-wide">Temporizadores</h1>
-            <p className="truncate text-sm text-muted-foreground">
-              Biblioteca de temporizadores guardados en este dispositivo
-            </p>
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:justify-end">
           {canCreateFolder && (
-            <Button variant="secondary" onClick={newFolder}>
+            <Button className="min-w-0 justify-center px-2" variant="secondary" onClick={newFolder}>
               <FolderPlus className="mr-1 h-4 w-4" /> {current ? "Subcarpeta" : "Carpeta"}
             </Button>
           )}
-          <Button variant="secondary" onClick={() => importInput.current?.click()}>
+          <Button
+            className="min-w-0 justify-center px-2"
+            variant="secondary"
+            onClick={() => importInput.current?.click()}
+          >
             <Upload className="mr-1 h-4 w-4" /> Importar
           </Button>
-          <Button onClick={create}>
+          <Button className="min-w-0 justify-center px-2" onClick={create}>
             <Plus className="mr-1 h-4 w-4" /> Nuevo
           </Button>
         </div>
@@ -512,9 +513,7 @@ function Library() {
         </DialogContent>
       </Dialog>
 
-      <p className="mt-10 text-xs text-muted-foreground">
-        Los datos se guardan localmente en este dispositivo y permanecen disponibles sin conexión.
-      </p>
+      <p className="mt-10 text-xs text-muted-foreground"></p>
     </main>
   );
 }

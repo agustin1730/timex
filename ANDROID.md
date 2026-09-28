@@ -41,10 +41,10 @@ release respaldada y un proceso de publicación.
 
 ## Candidata generada (28/09/2026)
 
-APK debug ARM64 0.25.0, versionCode 25000, minSdk 26, targetSdk 36.
+APK debug ARM64 0.26.0, versionCode 26000, minSdk 26, targetSdk 36.
 Archivo: `app/build/outputs/apk/universal/debug/app-universal-debug.apk` dentro
-de `src-tauri/gen/android`. Tamaño 141850167 bytes (incluye símbolos debug).
-SHA-256: `CA09293BB1ECF7A0BFB779E975AC4952EDECD7B6BB713E01F163E899EE23946D`.
+de `src-tauri/gen/android`. Tamaño 142008343 bytes (incluye símbolos debug).
+SHA-256: `F0D076D5159E1D997A52D13EE1E2C42D84B6BE4FC6D32A6B9421FC781384A175`.
 `apksigner verify --verbose`: firma v2 válida; `aapt dump badging`: nombre,
 versión y ABI correctos. Gradle terminó con BUILD SUCCESSFUL.
 

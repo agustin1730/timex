@@ -7,7 +7,7 @@ de trabajo, prevalece `AGENTS.md`; este archivo no autoriza cambios de producto.
 ## Versión y entrega
 
 - Base Windows instalada y confirmada por el usuario: **0.24.0**, incluida la importación JSON.
-- Candidata Android básica **0.25.0** en rama `codex/android-basic-apk`: ver `ANDROID.md` para alcance y estado de verificación.
+- Candidata Android básica **0.26.0** en rama `codex/android-basic-apk`: ver `ANDROID.md` para alcance y estado de verificación.
 - Rama publicada: [`codex/time-x-settings-0.23.0`](https://github.com/agustin1730/timex/tree/codex/time-x-settings-0.23.0).
 - Incluye los dos commits de control del widget en reproductores de 0.22.1,
   todavía no integrados en `main`, y el commit de identidad/Configuración/widget
