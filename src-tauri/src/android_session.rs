@@ -45,7 +45,7 @@ pub fn init() -> TauriPlugin<Wry> {
         .build()
 }
 
-#[tauri::command]
+#[tauri::command(rename = "android_session_start")]
 pub fn start(input: StartInput) -> Result<Value, String> {
     let payload = json!({
         "id": input.id,
@@ -57,19 +57,19 @@ pub fn start(input: StartInput) -> Result<Value, String> {
     handle()?.run_mobile_plugin("start", payload).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(rename = "android_session_state")]
 pub fn state() -> Result<Value, String> {
     handle()?.run_mobile_plugin("state", ()).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(rename = "android_session_control")]
 pub fn control(session_id: String, action: String) -> Result<Value, String> {
     handle()?
         .run_mobile_plugin("control", json!({ "id": session_id, "action": action }))
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+#[tauri::command(rename = "android_session_stop")]
 pub fn stop(_app: AppHandle) -> Result<(), String> {
     handle()?.run_mobile_plugin::<Value>("stop", ()).map(|_| ()).map_err(|e| e.to_string())
 }
