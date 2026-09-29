@@ -14,9 +14,13 @@ if (!$env:JAVA_HOME -or !$env:ANDROID_HOME) {
 if (!$env:NDK_HOME) { $env:NDK_HOME = Join-Path $env:ANDROID_HOME 'ndk/27.2.12479018' }
 $env:Path = "$env:JAVA_HOME/bin;$env:ANDROID_HOME/platform-tools;$env:Path"
 if ($Action -eq 'info') {
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     & java -version
     & rustup target list --installed
-    exit $LASTEXITCODE
+    $status = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorAction
+    exit $status
 }
 if ($Action -eq 'init' -or !(Test-Path 'src-tauri/gen/android')) {
     & npm.cmd run tauri -- android init --ci --skip-targets-install
@@ -31,6 +35,21 @@ $androidDestination = 'src-tauri/gen/android/app/src/main/java/com/agustin1730/i
 if (Test-Path $androidSource) {
     New-Item -ItemType Directory -Force $androidDestination | Out-Null
     Copy-Item -Path "$androidSource/*.kt" -Destination $androidDestination -Force
+    $androidTestSource = Join-Path $androidSource 'test'
+    if (Test-Path $androidTestSource) {
+        $androidTestDestination = 'src-tauri/gen/android/app/src/test/java/com/agustin1730/intervalos/androidsession'
+        New-Item -ItemType Directory -Force $androidTestDestination | Out-Null
+        Copy-Item -Path "$androidTestSource/*.kt" -Destination $androidTestDestination -Force
+        $gradlePath = 'src-tauri/gen/android/app/build.gradle.kts'
+        $gradleSource = Get-Content -LiteralPath $gradlePath -Raw
+        if ($gradleSource -notmatch 'org.robolectric:robolectric') {
+            $gradleSource = $gradleSource.Replace('    testImplementation("junit:junit:4.13.2")', '    testImplementation("junit:junit:4.13.2")' + "`r`n" + '    testImplementation("org.robolectric:robolectric:4.16")')
+        }
+        if ($gradleSource -notmatch 'jackson-databind') {
+            $gradleSource = $gradleSource.Replace('    testImplementation("junit:junit:4.13.2")', '    testImplementation("junit:junit:4.13.2")' + "`r`n" + '    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.15.3")')
+        }
+        Set-Content -LiteralPath $gradlePath -Value $gradleSource -Encoding utf8
+    }
     $manifestPath = 'src-tauri/gen/android/app/src/main/AndroidManifest.xml'
     $manifest = Get-Content -LiteralPath $manifestPath -Raw
     if ($manifest -notmatch 'AndroidSessionService') {
@@ -58,8 +77,15 @@ if (Test-Path $androidSource) {
 }
 if ($Action -eq 'build') {
     $buildLog = Join-Path ([IO.Path]::GetTempPath()) 'timex-android-build.log'
-    & npm.cmd run tauri -- android build --debug --apk --target aarch64 2>&1 | Tee-Object -FilePath $buildLog
-    if ($LASTEXITCODE -ne 0) {
+    # Windows PowerShell 5 treats ordinary native stderr as a terminating error
+    # under Stop; inspect the process exit code instead.
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & npm.cmd run tauri -- android build --debug --apk --target aarch64 2>&1 | Tee-Object -FilePath $buildLog
+        $tauriExitCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousErrorAction }
+    if ($tauriExitCode -ne 0) {
         # Tauri compiled successfully but Windows may deny the packaging symlink.
         # Only bypass that specific packaging step, never a compiler failure.
         $log = Get-Content -LiteralPath $buildLog -Raw
@@ -73,8 +99,13 @@ if ($Action -eq 'build') {
         $gradle = './src-tauri/gen/android/gradlew.bat'
         if (Test-Path '.android-tools/gradle/gradle-8.14.3/bin/gradle.bat') {
             $gradle = './.android-tools/gradle/gradle-8.14.3/bin/gradle.bat'
+            if (!$env:GRADLE_USER_HOME) { $env:GRADLE_USER_HOME = (Join-Path (Resolve-Path '.android-tools').Path 'gradle-user') }
         }
-        & $gradle -p src-tauri/gen/android assembleUniversalDebug -x rustBuildUniversalDebug --console=plain
-        if ($LASTEXITCODE -ne 0) { throw 'Falló el empaquetado con Gradle.' }
+        $ErrorActionPreference = 'Continue'
+        try {
+            & $gradle -p src-tauri/gen/android assembleUniversalDebug -x rustBuildUniversalDebug --no-daemon --console=plain
+            $gradleExitCode = $LASTEXITCODE
+        } finally { $ErrorActionPreference = $previousErrorAction }
+        if ($gradleExitCode -ne 0) { throw 'Falló el empaquetado con Gradle.' }
     }
 }

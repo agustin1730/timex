@@ -12,9 +12,11 @@ bandeja y voz limitadas a ese sistema. `src/lib/platform.ts` evita enviar comand
 Windows desde Android. Android utiliza `TimerSession`/`TimelineSession` y el
 almacenamiento local existente; los formatos e IDs no se modifican.
 
-Desde 0.27, al iniciar un temporizador o secuencia se activa un servicio de
-primer plano nativo. La sesión continúa con la pantalla bloqueada o mientras se
-usa otra aplicación. La notificación persistente muestra etapa, tiempo restante,
+Desde 0.27, el reproductor solicita un servicio de primer plano nativo. En la
+candidata 0.27.2, el plugin espera la confirmación del servicio antes de indicar
+que la sesión comenzó. El servicio está diseñado para mantener el reloj al
+bloquear la pantalla o cambiar de aplicación, pero falta validarlo en el teléfono.
+La notificación persistente muestra etapa, tiempo restante,
 repetición y barra de progreso, con Anterior, Pausar/Reanudar y Siguiente. El
 canal no vibra y usa el sonido normal de Android cuando el volumen y el modo del
 teléfono lo permiten. La voz nativa en segundo plano queda para la segunda parte.
@@ -37,7 +39,7 @@ locales en `.android-tools/` (excluidas de Git).
 
 Ejecutar `powershell -File scripts/android.ps1 build`. El script inicializa el
 proyecto generado de Tauri si falta y construye una APK debug ARM64. La versión
-Android 0.27.0 se define en `src-tauri/tauri.android.conf.json`, sin cambiar la
+Android 0.27.2 se define en `src-tauri/tauri.android.conf.json`, sin cambiar la
 versión de Windows. El proyecto generado `src-tauri/gen/android` no se versiona.
 
 Si Windows rechaza el enlace simbólico después de compilar Rust, el script copia
@@ -48,6 +50,31 @@ La APK interna se firma con la clave debug local de Android. Mantener esa clave
 fuera de Git para actualizar pruebas sin desinstalar y perder datos. No es una
 entrega de Play Store: antes de distribuir públicamente se preparará una firma
 release respaldada y un proceso de publicación.
+
+## Candidata de recuperación 0.27.2 (29/09/2026)
+
+La 0.27.1 instalada por el usuario mostraba «No hay una sesión de Android activa»
+al intentar iniciar. La 0.27.2 espera el acuse del servicio, valida el estado y
+su ID, descarta inicios tardíos y corrige las acciones de la notificación.
+Conserva el estado final y permite iniciar nuevamente. Si el servicio desaparece,
+la pantalla muestra el fallo y permite reintentar. La voz Android en segundo
+plano todavía no está implementada.
+
+APK de prueba: `Time-X-0.27.2-Android-prueba.apk`, versionCode 27002,
+identificador `com.agustin1730.intervalos`, minSdk 26, ABI arm64-v8a.
+SHA-256: `ED48BBF23805FFD5F3963893F5B99DE20A5B3CFB2FEE8E6256824ACD268E929A`.
+`apksigner verify` pasó; el certificado SHA-256
+`4AF176D85115D80E103C1BC2E22FD9BE93C3CE3CCF32E3EB53AEB363AE582406`
+coincide con la APK 0.27.1 para actualizar encima sin desinstalar. La biblioteca
+ARM64 embebida coincide byte a byte con la compilada. Pasaron siete pruebas
+Robolectric del servicio/plugin, 41 pruebas TypeScript, typecheck, build web,
+lint sin errores (seis advertencias previas) y compilación Android. Estas
+comprobaciones no verifican el funcionamiento físico de la APK.
+
+Instalar encima de 0.27.1 sin desinstalar y comprobar que la biblioteca siga
+presente. Probar inicio de temporizador y secuencia, pausa/reanudación, saltos
+desde la pantalla y la notificación, cambio de aplicación, pantalla bloqueada,
+fin y nueva ejecución. Si aparece otro fallo, registrar el texto exacto.
 
 ## Candidata generada (28/09/2026)
 

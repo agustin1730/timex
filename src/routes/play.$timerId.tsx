@@ -120,6 +120,11 @@ function Player() {
               session.applySnapshot(native);
               setPlayback(session.state);
               setWidgetVisible(native.widgetVisible);
+            } else if (!native && isAndroidApp() && sessionRef.current === session) {
+              desktopStartedRef.current = false;
+              session.applySnapshot({ ...session.state, running: false });
+              setPlayback(session.state);
+              setDesktopError("Se interrumpió la sesión de Android. Podés volver a iniciarla.");
             }
           })
           .catch((error) => console.error("No se pudo leer la sesión nativa", error))
@@ -151,9 +156,16 @@ function Player() {
     if (!session || !session.steps.length || session.state.running || starting) return;
     const request = ++requestRef.current;
     setStarting(true);
-    if (timerNotifications(session.timer)) await requestNotificationPermission();
-    if (request !== requestRef.current || session !== sessionRef.current) return;
     try {
+      if (session.state.finished && isNativeSession()) {
+        await stopNativeSession(desktopIdRef.current);
+        desktopIdRef.current = crypto.randomUUID();
+        desktopStartedRef.current = false;
+        session.reset();
+        setPlayback(session.state);
+      }
+      if (timerNotifications(session.timer)) await requestNotificationPermission();
+      if (request !== requestRef.current || session !== sessionRef.current) return;
       if (isNativeSession()) {
         const native = desktopStartedRef.current
           ? await controlNativeSession(desktopIdRef.current, "resume")
@@ -191,6 +203,12 @@ function Player() {
       }
       setDesktopError("");
     } catch (error) {
+      if (isAndroidApp()) {
+        const failedId = desktopIdRef.current;
+        desktopStartedRef.current = false;
+        desktopIdRef.current = crypto.randomUUID();
+        await stopNativeSession(failedId).catch(() => {});
+      }
       setDesktopError(`No se pudo iniciar: ${String(error)}`);
     } finally {
       if (request === requestRef.current) setStarting(false);

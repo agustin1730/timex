@@ -7,7 +7,7 @@ de trabajo, prevalece `AGENTS.md`; este archivo no autoriza cambios de producto.
 ## Versión y entrega
 
 - Base Windows instalada y confirmada por el usuario: **0.24.0**, incluida la importación JSON.
-- Candidata Android básica **0.26.0** en rama `codex/android-basic-apk`: ver `ANDROID.md` para alcance y estado de verificación.
+- El usuario instaló Android **0.27.1** y confirmó un fallo al iniciar la sesión. La **0.27.2** es una candidata de recuperación compilada y probada en JVM; falta probarla en el Poco M6 Pro. Ver `ANDROID.md`.
 - Rama publicada: [`codex/time-x-settings-0.23.0`](https://github.com/agustin1730/timex/tree/codex/time-x-settings-0.23.0).
 - Incluye los dos commits de control del widget en reproductores de 0.22.1,
   todavía no integrados en `main`, y el commit de identidad/Configuración/widget
@@ -25,8 +25,8 @@ de trabajo, prevalece `AGENTS.md`; este archivo no autoriza cambios de producto.
 Time X es una aplicación local primero. El producto visible se llama **Time X**;
 `intervalos`, `com.agustin1730.intervalos` y las claves `interval-timers.*` son
 identificadores históricos que se preservan para no perder datos ni romper
-actualizaciones. La versión web y Windows existen. Android es una meta futura;
-no hay una aplicación Android publicada o verificada.
+actualizaciones. La versión web y Windows existen. Android tiene una APK de
+prueba; aún no está publicada ni aprobada en el teléfono.
 
 Temporizadores individuales, bloques, etapas coloreadas, carpetas de hasta dos
 niveles y secuencias guardadas están implementados. En 0.24.0, importar

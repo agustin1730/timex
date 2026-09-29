@@ -36,6 +36,35 @@ export type DesktopStage = {
   notifications: boolean;
 };
 
+/** Android must never replace a valid local player state with an empty or stale native reply. */
+export function requireAndroidSnapshot(
+  value: unknown,
+  sessionId: string,
+  stageCount?: number,
+): DesktopSnapshot {
+  if (!value || typeof value !== "object")
+    throw new Error("El servicio Android no devolvió una sesión válida");
+  const state = value as Partial<DesktopSnapshot>;
+  if (
+    state.id !== sessionId ||
+    !Number.isInteger(state.index) ||
+    (state.index as number) < 0 ||
+    (stageCount !== undefined && (state.index as number) >= stageCount) ||
+    !Number.isFinite(state.remaining) ||
+    (state.remaining as number) < 0 ||
+    typeof state.running !== "boolean" ||
+    typeof state.finished !== "boolean" ||
+    typeof state.stageName !== "string" ||
+    typeof state.color !== "string" ||
+    !Number.isInteger(state.repeatIndex) ||
+    !Number.isInteger(state.repeatTotal) ||
+    typeof state.widgetVisible !== "boolean"
+  ) {
+    throw new Error("El servicio Android devolvió un estado incompleto o de otra sesión");
+  }
+  return state as DesktopSnapshot;
+}
+
 export function desktopStage(
   step: Step,
   context: string,
@@ -88,22 +117,28 @@ export function startAndroidSession(input: {
   remaining: number;
   finish: { title: string; body: string; voice: boolean; notifications: boolean };
 }) {
-  return invoke<DesktopSnapshot>("android_session_start", { input });
+  return invoke<unknown>("android_session_start", { input }).then((value) =>
+    requireAndroidSnapshot(value, input.id, input.stages.length),
+  );
 }
 
-export function readAndroidSession() {
-  return invoke<DesktopSnapshot>("android_session_state");
+export function readAndroidSession(sessionId: string) {
+  return invoke<unknown>("android_session_state").then((value) =>
+    value == null ? null : requireAndroidSnapshot(value, sessionId),
+  );
 }
 
 export function controlAndroidSession(
   sessionId: string,
   action: "pause" | "resume" | "previous" | "next" | "reset",
 ) {
-  return invoke<DesktopSnapshot>("android_session_control", { sessionId, action });
+  return invoke<unknown>("android_session_control", { sessionId, action }).then((value) =>
+    requireAndroidSnapshot(value, sessionId),
+  );
 }
 
-export function stopAndroidSession() {
-  return invoke<void>("android_session_stop");
+export function stopAndroidSession(sessionId: string) {
+  return invoke<void>("android_session_stop", { sessionId });
 }
 
 export const isNativeSession = () => isTauriDesktop() || isAndroidApp();
@@ -113,7 +148,7 @@ export function startNativeSession(input: Parameters<typeof startDesktopSession>
 }
 
 export function readNativeSession(sessionId: string) {
-  return isAndroidApp() ? readAndroidSession() : readDesktopSession(sessionId);
+  return isAndroidApp() ? readAndroidSession(sessionId) : readDesktopSession(sessionId);
 }
 
 export function controlNativeSession(
@@ -126,5 +161,5 @@ export function controlNativeSession(
 }
 
 export function stopNativeSession(sessionId: string) {
-  return isAndroidApp() ? stopAndroidSession() : stopDesktopSession(sessionId);
+  return isAndroidApp() ? stopAndroidSession(sessionId) : stopDesktopSession(sessionId);
 }

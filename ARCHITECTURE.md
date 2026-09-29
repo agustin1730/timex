@@ -18,10 +18,11 @@ Leé la sección de la función solicitada y después su código. Este mapa desc
 | Cuenta y bibliotecas separadas por usuario | `src/lib/sync/`; detalles en `ACCOUNT-SYNC.md` |
 | Reloj web, pausa, salto y copia de sesión | `src/lib/timer-session.ts` |
 | Reloj nativo de Windows y mini widget | `src-tauri/src/native_session.rs`, `src-tauri/src/desktop.rs`, `public/widget.html`; puente en `src/lib/desktop-session.ts` |
+| Sesión Android en segundo plano | `src-tauri/src/android_session.rs`, `src-tauri/android/AndroidSessionPlugin.kt`, `AndroidSessionService.kt`; inyección y pruebas en `scripts/android.ps1` |
 | Posición y progreso de secuencias | `src/lib/sequence-timeline.ts` |
 | Voz y avisos de navegador/Tauri | `src/lib/announcer.ts` |
 
-La versión visible es Time X (0.24.0). `src-tauri/tauri.conf.json` contiene el
+El nombre visible es Time X. `src-tauri/tauri.conf.json` contiene el
 nombre y versión de producto; el identificador Tauri `com.agustin1730.intervalos`,
 el nombre de paquete Rust y las claves `interval-timers.*` permanecen históricos
 por compatibilidad con instalaciones y bibliotecas ya existentes.
@@ -34,9 +35,9 @@ El almacenamiento principal usa `localStorage` por origen/perfil: `interval-time
 
 - Web: voz y notificaciones dependen del navegador y sus permisos.
 - Windows: Tauri 2 aporta instalador NSIS, bandeja, voz y notificaciones nativas. El motor Rust mantiene la sesión mientras la ventana principal está oculta; el reproductor React lee su estado mediante `desktop-session.ts`. El mini widget es una segunda ventana de la misma sesión. Consultá `DESKTOP-WINDOWS.md` antes de cambiar ciclo de ventana o avisos.
-- La Configuración presenta Cuenta y Acerca de la app. `src/lib/app-info.ts` usa la versión nativa de Tauri cuando está disponible y etiqueta el entorno como Web o Windows; Android no implica que exista una app Android compilada.
+- La Configuración presenta Cuenta y Acerca de la app. `src/lib/app-info.ts` lee la versión nativa de Tauri cuando está disponible y distingue Web, Windows y Android.
 - La importación/exportación JSON solo incluye temporizadores. El codec versionado está en `timer-json.ts`; las escrituras por lote pasan por `timer-storage.ts`. La biblioteca coloca importaciones en la ubicación abierta. La exportación de una tarjeta usa el mismo formato de arreglo que permitirá añadir exportación múltiple después.
-- Android: candidata básica en desarrollo, documentada en `ANDROID.md`. Entrada móvil en `src-tauri/src/lib.rs`; detección de plataforma en `src/lib/platform.ts`. Comparte modelos, almacenamiento y motor web con temporizadores y secuencias. El hook `use-android-foreground.ts` pausa al ocultar el documento; debe comprobarse en el teléfono. Segundo plano, pantalla bloqueada y voz nativa siguen pendientes.
+- Android: candidata 0.27.2 pendiente de aceptación en el Poco M6 Pro (`ANDROID.md`). Entrada móvil en `src-tauri/src/lib.rs`; detección de plataforma en `src/lib/platform.ts`. Comparte modelos y almacenamiento con Windows. `desktop-session.ts` comunica los reproductores con el servicio nativo de primer plano; el servicio conserva el reloj y la notificación al ocultar la WebView. El plugin confirma el inicio solo después de crear el servicio y publicar su estado. `src-tauri/android/test/` cubre el contrato con pruebas JVM/Robolectric. Voz nativa en segundo plano y comportamiento físico con pantalla bloqueada siguen pendientes de prueba/implementación.
 
 ## Decisiones futuras, no funciones actuales
 

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { isAndroidApp } from "@/lib/platform";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Clock, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
 import { sequenceTimeline } from "@/lib/sequence-timeline";
@@ -96,6 +97,11 @@ function SequencePlayer() {
               s.applySnapshot(native);
               setState(s.state);
               setWidgetVisible(native.widgetVisible);
+            } else if (!native && isAndroidApp() && s === sessionRef.current) {
+              desktopStartedRef.current = false;
+              s.applySnapshot({ ...s.state, running: false });
+              setState(s.state);
+              setError("Se interrumpió la sesión de Android. Podés volver a iniciarla.");
             }
           })
           .catch((error) => console.error("No se pudo leer la sesión nativa", error))
@@ -145,9 +151,9 @@ function SequencePlayer() {
     if (!session) return;
     const request = ++requestRef.current;
     setStarting(true);
-    if (session.steps.some((s) => s.notifications)) await requestNotificationPermission();
-    if (request !== requestRef.current || sessionRef.current !== session) return;
     try {
+      if (session.steps.some((s) => s.notifications)) await requestNotificationPermission();
+      if (request !== requestRef.current || sessionRef.current !== session) return;
       if (isNativeSession()) {
         const last = session.steps.at(-1);
         const native = desktopStartedRef.current
@@ -188,6 +194,12 @@ function SequencePlayer() {
       }
       freshRef.current = false;
     } catch (e) {
+      if (isAndroidApp()) {
+        const failedId = desktopIdRef.current;
+        desktopStartedRef.current = false;
+        desktopIdRef.current = crypto.randomUUID();
+        await stopNativeSession(failedId).catch(() => {});
+      }
       setError(`No se pudo iniciar: ${String(e)}`);
     } finally {
       if (request === requestRef.current) setStarting(false);

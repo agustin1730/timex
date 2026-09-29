@@ -16,6 +16,7 @@ class AndroidSessionService : Service() {
   data class State(var id: String, val stages: List<Stage>, var index: Int, var remainingMs: Long, var running: Boolean, var finished: Boolean, val finishTitle: String)
 
   private val handler = Handler(Looper.getMainLooper())
+  private val ticker = object : Runnable { override fun run() { tick() } }
   private var state: State? = null
   private var deadline = 0L
 
@@ -28,30 +29,66 @@ class AndroidSessionService : Service() {
   override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
     when (intent?.action) {
       ACTION_START -> startSession(intent)
-      ACTION_PAUSE, ACTION_RESUME, ACTION_PREVIOUS, ACTION_NEXT -> control(intent.getStringExtra(EXTRA_ID) ?: "", intent.action ?: "")
-      ACTION_STOP -> stop(this)
+      ACTION_PAUSE -> control(intent.getStringExtra(EXTRA_ID) ?: "", "pause")
+      ACTION_RESUME -> control(intent.getStringExtra(EXTRA_ID) ?: "", "resume")
+      ACTION_PREVIOUS -> control(intent.getStringExtra(EXTRA_ID) ?: "", "previous")
+      ACTION_NEXT -> control(intent.getStringExtra(EXTRA_ID) ?: "", "next")
+      ACTION_STOP -> stop(this, intent.getStringExtra(EXTRA_ID))
     }
     return START_NOT_STICKY
   }
 
   private fun startSession(intent: Intent) {
-    val raw = intent.getStringExtra(EXTRA_STAGES) ?: return
-    val json = JSONArray(raw)
-    val stages = (0 until json.length()).map {
-      val item = json.getJSONObject(it)
-      Stage(item.optLong("duration"), item.optString("stageName"), item.optString("color"), item.optLong("repeatIndex", 1), item.optLong("repeatTotal", 1), item.optString("context"))
-    }.filter { it.duration > 0 }
-    if (stages.isEmpty()) return
-    val index = min(max(intent.getIntExtra(EXTRA_INDEX, 0), 0), stages.lastIndex)
-    val remaining = max(1L, (intent.getDoubleExtra(EXTRA_REMAINING, stages[index].duration.toDouble()) * 1000).toLong())
-    state = State(intent.getStringExtra(EXTRA_ID) ?: return, stages, index, remaining, true, false, intent.getStringExtra(EXTRA_FINISH_TITLE) ?: "Temporizador finalizado")
-    sharedState = state
-    deadline = SystemClock.elapsedRealtime() + remaining
-    startForeground(NOTIFICATION_ID, notification())
-    tick()
+    @Suppress("DEPRECATION")
+    val reply = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(EXTRA_REPLY, ResultReceiver::class.java)
+      else intent.getParcelableExtra(EXTRA_REPLY) as? ResultReceiver
+    try {
+      val id = intent.getStringExtra(EXTRA_ID) ?: throw IllegalArgumentException("Falta el identificador")
+      if (pendingStartId != id) throw IllegalStateException("Inicio de sesión cancelado")
+      val raw = intent.getStringExtra(EXTRA_STAGES) ?: throw IllegalArgumentException("Faltan etapas")
+      val json = JSONArray(raw)
+      val stages = (0 until json.length()).map {
+        val item = json.getJSONObject(it)
+        Stage(item.optLong("duration"), item.optString("stageName"), item.optString("color"), item.optLong("repeatIndex", 1), item.optLong("repeatTotal", 1), item.optString("context"))
+      }
+      if (stages.isEmpty() || stages.any { it.duration <= 0 }) throw IllegalArgumentException("Etapas inválidas")
+      val index = intent.getIntExtra(EXTRA_INDEX, 0)
+      if (index !in stages.indices) throw IllegalArgumentException("Índice de etapa inválido")
+      val seconds = intent.getDoubleExtra(EXTRA_REMAINING, stages[index].duration.toDouble())
+      if (!seconds.isFinite() || seconds <= 0 || seconds > stages[index].duration) throw IllegalArgumentException("Tiempo restante inválido")
+      val remaining = (seconds * 1000).toLong().coerceAtLeast(1)
+      val previous = state
+      val previousDeadline = deadline
+      handler.removeCallbacks(ticker)
+      state = State(id, stages, index, remaining, true, false, intent.getStringExtra(EXTRA_FINISH_TITLE) ?: "Temporizador finalizado")
+      deadline = SystemClock.elapsedRealtime() + remaining
+      try {
+        startForeground(NOTIFICATION_ID, notification())
+      } catch (error: Exception) {
+        state = previous
+        deadline = previousDeadline
+        if (previous != null && previous.running) handler.post(ticker)
+        throw error
+      }
+      sharedState = state
+      pendingStartId = null
+      tick()
+      reply?.send(RESULT_OK, Bundle().apply { putString(EXTRA_SNAPSHOT, snapshotJson()!!.toString()) })
+    } catch (error: Exception) {
+      cancelExpectedStart(intent.getStringExtra(EXTRA_ID) ?: "")
+      if (state != null && sharedState === state && state?.id == intent.getStringExtra(EXTRA_ID)) {
+        handler.removeCallbacks(ticker)
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        sharedState = null
+        state = null
+      }
+      if (state == null) stopSelf()
+      reply?.send(RESULT_ERROR, Bundle().apply { putString(EXTRA_MESSAGE, error.message ?: "No se pudo iniciar el servicio") })
+    }
   }
 
   private fun tick() {
+    handler.removeCallbacks(ticker)
     val current = state ?: return
     if (current.running) {
       var now = SystemClock.elapsedRealtime()
@@ -61,7 +98,7 @@ class AndroidSessionService : Service() {
           current.running = false
           current.finished = true
           updateNotification()
-          stopForeground(STOP_FOREGROUND_REMOVE)
+          stopForeground(STOP_FOREGROUND_DETACH)
           stopSelf()
           return
         }
@@ -72,7 +109,7 @@ class AndroidSessionService : Service() {
       }
       current.remainingMs = max(0L, deadline - now)
       updateNotification()
-      handler.postDelayed({ tick() }, 200L)
+      handler.postDelayed(ticker, 200L)
     } else {
       updateNotification()
     }
@@ -89,21 +126,23 @@ class AndroidSessionService : Service() {
     val progress = ((1.0 - s.remainingMs.toDouble() / (stage.duration * 1000.0)) * 100).toInt().coerceIn(0, 100)
     val pauseIcon = if (s.running) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
     val pauseTitle = if (s.running) "Pausar" else "Reanudar"
-    return NotificationCompat.Builder(this, CHANNEL_ID)
+    val notification = NotificationCompat.Builder(this, CHANNEL_ID)
       .setSmallIcon(android.R.drawable.ic_media_play)
-      .setContentTitle("Time X · ${stage.name}")
-      .setContentText("$remaining · ${stage.context}")
+      .setContentTitle(if (s.finished) s.finishTitle else "Time X · ${stage.name}")
+      .setContentText(if (s.finished) "Finalizado" else "$remaining · ${stage.context}")
       .setSubText("Repetición ${stage.repeat}/${stage.total}")
       .setProgress(100, progress, false)
       .setOngoing(!s.finished)
       .setOnlyAlertOnce(true)
       .setCategory(NotificationCompat.CATEGORY_PROGRESS)
       .setColor(Color.rgb(255, 153, 0))
-      .addAction(android.R.drawable.ic_media_previous, "Anterior", actionIntent(ACTION_PREVIOUS))
-      .addAction(pauseIcon, pauseTitle, actionIntent(if (s.running) ACTION_PAUSE else ACTION_RESUME))
-      .addAction(android.R.drawable.ic_media_next, "Siguiente", actionIntent(ACTION_NEXT))
       .setContentIntent(mainIntent())
-      .build()
+    if (!s.finished) {
+      notification.addAction(android.R.drawable.ic_media_previous, "Anterior", actionIntent(ACTION_PREVIOUS))
+        .addAction(pauseIcon, pauseTitle, actionIntent(if (s.running) ACTION_PAUSE else ACTION_RESUME))
+        .addAction(android.R.drawable.ic_media_next, "Siguiente", actionIntent(ACTION_NEXT))
+    }
+    return notification.build()
   }
 
   private fun actionIntent(action: String): PendingIntent {
@@ -121,7 +160,7 @@ class AndroidSessionService : Service() {
     handler.removeCallbacksAndMessages(null)
     if (active === this) {
       active = null
-      sharedState = null
+      if (sharedState === state && state?.finished != true) sharedState = null
     }
     super.onDestroy()
   }
@@ -138,13 +177,22 @@ class AndroidSessionService : Service() {
     const val EXTRA_INDEX = "index"
     const val EXTRA_REMAINING = "remaining"
     const val EXTRA_FINISH_TITLE = "finishTitle"
+    const val EXTRA_REPLY = "startReply"
+    const val EXTRA_SNAPSHOT = "snapshot"
+    const val EXTRA_MESSAGE = "message"
+    const val RESULT_OK = 1
+    const val RESULT_ERROR = 2
     const val CHANNEL_ID = "timex_timer"
     const val NOTIFICATION_ID = 2701
     private var active: AndroidSessionService? = null
     private var sharedState: State? = null
+    private var pendingStartId: String? = null
 
-    fun snapshotJson(): JSONObject {
-      val s = sharedState ?: active?.state ?: return JSONObject().put("id", "").put("running", false).put("finished", false)
+    fun expectStart(id: String) { pendingStartId = id }
+    fun cancelExpectedStart(id: String) { if (pendingStartId == id) pendingStartId = null }
+
+    fun snapshotJson(): JSONObject? {
+      val s = sharedState ?: active?.state ?: return null
       val stage = s.stages[s.index]
       return JSONObject().put("id", s.id).put("index", s.index).put("remaining", s.remainingMs / 1000.0).put("running", s.running).put("finished", s.finished).put("stageName", stage.name).put("color", stage.color).put("repeatIndex", stage.repeat).put("repeatTotal", stage.total).put("widgetEnabled", false).put("widgetVisible", false)
     }
@@ -153,24 +201,30 @@ class AndroidSessionService : Service() {
       val service = active ?: return false
       val s = service.state ?: return false
       if (id != s.id) return false
+      if (action !in setOf("pause", "resume", "previous", "next", "reset")) return false
+      service.handler.removeCallbacks(service.ticker)
       when (action) {
         "pause" -> if (s.running) { s.remainingMs = max(0L, service.deadline - SystemClock.elapsedRealtime()); s.running = false }
-        "resume" -> if (!s.running && !s.finished) { s.running = true; service.deadline = SystemClock.elapsedRealtime() + s.remainingMs; service.tick() }
+        "resume" -> if (!s.running && !s.finished) { s.running = true; service.deadline = SystemClock.elapsedRealtime() + s.remainingMs }
         "previous", "next" -> { s.index = if (action == "next") min(s.index + 1, s.stages.lastIndex) else max(s.index - 1, 0); s.remainingMs = s.stages[s.index].duration * 1000; s.finished = false; if (s.running) service.deadline = SystemClock.elapsedRealtime() + s.remainingMs }
         "reset" -> { s.index = 0; s.remainingMs = s.stages[0].duration * 1000; s.running = false; s.finished = false }
-        else -> return false
       }
       sharedState = s
-      service.updateNotification()
+      if (s.running) service.tick() else service.updateNotification()
       return true
     }
 
-    fun stop(context: Context) {
+    fun stop(context: Context, id: String? = null) {
+      if (id != null && id != pendingStartId && id != active?.state?.id && id != sharedState?.id) return
+      if (pendingStartId != null && id != null && id != pendingStartId) return
+      if (id == null || id == pendingStartId) pendingStartId = null
+      active?.let { it.handler.removeCallbacks(it.ticker) }
       active?.stopForeground(STOP_FOREGROUND_REMOVE)
       active?.stopSelf()
       active = null
       sharedState = null
       context.stopService(Intent(context, AndroidSessionService::class.java))
+      NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
     }
   }
 
