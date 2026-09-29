@@ -88,28 +88,22 @@ export function startAndroidSession(input: {
   remaining: number;
   finish: { title: string; body: string; voice: boolean; notifications: boolean };
 }) {
-  return invoke<DesktopSnapshot>("plugin:android-session|start", {
-    id: input.id,
-    stages: input.stages,
-    index: input.index,
-    remaining: input.remaining,
-    finishTitle: input.finish.title,
-  });
+  return invoke<DesktopSnapshot>("android_session_start", { input });
 }
 
 export function readAndroidSession() {
-  return invoke<DesktopSnapshot>("plugin:android-session|state");
+  return invoke<DesktopSnapshot>("android_session_state");
 }
 
 export function controlAndroidSession(
   sessionId: string,
   action: "pause" | "resume" | "previous" | "next" | "reset",
 ) {
-  return invoke<DesktopSnapshot>("plugin:android-session|control", { id: sessionId, action });
+  return invoke<DesktopSnapshot>("android_session_control", { sessionId, action });
 }
 
 export function stopAndroidSession() {
-  return invoke<void>("plugin:android-session|stop");
+  return invoke<void>("android_session_stop");
 }
 
 export const isNativeSession = () => isTauriDesktop() || isAndroidApp();

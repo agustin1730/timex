@@ -1831,6 +1831,7 @@ version = "0.27.0"
 dependencies = [
  "notify-rust",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

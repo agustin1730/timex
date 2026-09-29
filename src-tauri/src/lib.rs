@@ -15,7 +15,14 @@ pub fn run() {
         let mut builder = tauri::Builder::default();
         #[cfg(target_os = "android")]
         {
-            builder = builder.plugin(android_session::init());
+            builder = builder
+                .plugin(android_session::init())
+                .invoke_handler(tauri::generate_handler![
+                    android_session::start,
+                    android_session::state,
+                    android_session::control,
+                    android_session::stop
+                ]);
         }
         builder = builder
             .plugin(tauri_plugin_dialog::init())
