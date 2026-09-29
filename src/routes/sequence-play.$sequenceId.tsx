@@ -1,4 +1,3 @@
-import { useAndroidForeground } from "@/hooks/use-android-foreground";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Clock, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
@@ -11,12 +10,12 @@ import { TimelineSession, type Playback } from "@/lib/timer-session";
 import { formatClock, formatHuman } from "@/lib/timer-model";
 import { stageColor, stageColorPalette } from "@/lib/stage-colors";
 import {
-  controlDesktopSession,
   desktopStage,
-  isTauriDesktop,
-  readDesktopSession,
-  startDesktopSession,
-  stopDesktopSession,
+  controlNativeSession,
+  isNativeSession,
+  readNativeSession,
+  startNativeSession,
+  stopNativeSession,
 } from "@/lib/desktop-session";
 import {
   speak,
@@ -88,10 +87,10 @@ function SequencePlayer() {
     let polling = false;
     const interval = window.setInterval(() => {
       const s = sessionRef.current;
-      if (isTauriDesktop()) {
+      if (isNativeSession()) {
         if (!s || !desktopStartedRef.current || polling) return;
         polling = true;
-        void readDesktopSession(desktopIdRef.current)
+        void readNativeSession(desktopIdRef.current)
           .then((native) => {
             if (native && s === sessionRef.current) {
               s.applySnapshot(native);
@@ -111,7 +110,7 @@ function SequencePlayer() {
     return () => {
       window.clearInterval(interval);
       sessionRef.current = null;
-      if (isTauriDesktop()) void stopDesktopSession(desktopIdRef.current);
+      if (isNativeSession()) void stopNativeSession(desktopIdRef.current);
       else {
         stopSpeaking();
         reportSessionStatus("idle");
@@ -130,8 +129,8 @@ function SequencePlayer() {
     if (freshRef.current || session?.state.finished) {
       try {
         const index = session?.state.finished ? 0 : (session?.state.index ?? 0);
-        if (isTauriDesktop() && desktopStartedRef.current)
-          void stopDesktopSession(desktopIdRef.current);
+        if (isNativeSession() && desktopStartedRef.current)
+          void stopNativeSession(desktopIdRef.current);
         session = build();
         session.goTo(index);
         sessionRef.current = session;
@@ -149,11 +148,11 @@ function SequencePlayer() {
     if (session.steps.some((s) => s.notifications)) await requestNotificationPermission();
     if (request !== requestRef.current || sessionRef.current !== session) return;
     try {
-      if (isTauriDesktop()) {
+      if (isNativeSession()) {
         const last = session.steps.at(-1);
         const native = desktopStartedRef.current
-          ? await controlDesktopSession(desktopIdRef.current, "resume")
-          : await startDesktopSession({
+          ? await controlNativeSession(desktopIdRef.current, "resume")
+          : await startNativeSession({
               id: desktopIdRef.current,
               stages: session.steps.map((step) =>
                 desktopStage(
@@ -175,7 +174,7 @@ function SequencePlayer() {
               },
             });
         if (request !== requestRef.current || sessionRef.current !== session) {
-          await stopDesktopSession(native.id);
+          await stopNativeSession(native.id);
           return;
         }
         desktopStartedRef.current = true;
@@ -198,8 +197,8 @@ function SequencePlayer() {
     cancel();
     const s = sessionRef.current;
     if (!s) return;
-    if (isTauriDesktop() && desktopStartedRef.current) {
-      void controlDesktopSession(desktopIdRef.current, "pause")
+    if (isNativeSession() && desktopStartedRef.current) {
+      void controlNativeSession(desktopIdRef.current, "pause")
         .then((native) => {
           s.applySnapshot(native);
           setState(s.state);
@@ -212,14 +211,12 @@ function SequencePlayer() {
     stopSpeaking();
     reportSessionStatus("paused");
   };
-  useAndroidForeground(pause);
-
   const go = (delta: number) => {
     cancel();
     const s = sessionRef.current;
     if (!s) return;
-    if (isTauriDesktop() && desktopStartedRef.current) {
-      void controlDesktopSession(desktopIdRef.current, delta < 0 ? "previous" : "next")
+    if (isNativeSession() && desktopStartedRef.current) {
+      void controlNativeSession(desktopIdRef.current, delta < 0 ? "previous" : "next")
         .then((native) => {
           s.applySnapshot(native);
           setState(s.state);
@@ -236,8 +233,8 @@ function SequencePlayer() {
     cancel();
     const s = sessionRef.current;
     if (!s) return;
-    if (isTauriDesktop() && desktopStartedRef.current) {
-      void controlDesktopSession(desktopIdRef.current, "reset")
+    if (isNativeSession() && desktopStartedRef.current) {
+      void controlNativeSession(desktopIdRef.current, "reset")
         .then((native) => {
           s.applySnapshot(native);
           setState(s.state);

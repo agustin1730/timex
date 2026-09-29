@@ -1,9 +1,8 @@
-# Time X: primera APK interna
+# Time X: APK interna
 
-Objetivo: temporizadores y secuencias locales con la aplicación abierta y pantalla
-encendida. Dispositivo de aceptación: Poco M6 Pro, Android 16 BP2A.250605.031.A3,
-HyperOS 3.0.305.0. No requiere cable USB, cuenta ni Supabase. El usuario puede
-descargar la APK en el teléfono mediante su Drive.
+Objetivo de la candidata 0.27: temporizadores y secuencias locales con servicio
+de primer plano. Dispositivo de aceptación: Poco M6 Pro, Android 16
+BP2A.250605.031.A3, HyperOS 3.0.305.0. No requiere cuenta ni Supabase.
 
 ## Arquitectura
 
@@ -13,10 +12,21 @@ bandeja y voz limitadas a ese sistema. `src/lib/platform.ts` evita enviar comand
 Windows desde Android. Android utiliza `TimerSession`/`TimelineSession` y el
 almacenamiento local existente; los formatos e IDs no se modifican.
 
-Esta candidata se pausa al recibir el evento de ocultación del documento; no
-reanuda automáticamente al volver. Debe comprobarse ese evento en el teléfono.
-No ofrece todavía servicio de segundo plano, voz nativa ni controles de bloqueo.
-El widget sigue siendo exclusivo de Windows. La interfaz muestra estas limitaciones.
+Desde 0.27, al iniciar un temporizador o secuencia se activa un servicio de
+primer plano nativo. La sesión continúa con la pantalla bloqueada o mientras se
+usa otra aplicación. La notificación persistente muestra etapa, tiempo restante,
+repetición y barra de progreso, con Anterior, Pausar/Reanudar y Siguiente. El
+canal no vibra y usa el sonido normal de Android cuando el volumen y el modo del
+teléfono lo permiten. La voz nativa en segundo plano queda para la segunda parte.
+
+En Xiaomi/HyperOS hay que abrir Ajustes → Apps → Time X → Batería y elegir
+**Sin restricciones**; también conviene activar Inicio automático y permitir
+notificaciones. La guía aparece en Configuración dentro de Android. El widget
+sigue siendo exclusivo de Windows.
+
+La web, Rust y la compilación no verifican el servicio real, la pantalla
+bloqueada ni los controles de la notificación. Esos casos deben probarse con la
+APK instalada en el Poco M6 Pro.
 
 ## Compilación en Windows
 
@@ -27,7 +37,7 @@ locales en `.android-tools/` (excluidas de Git).
 
 Ejecutar `powershell -File scripts/android.ps1 build`. El script inicializa el
 proyecto generado de Tauri si falta y construye una APK debug ARM64. La versión
-Android 0.25.0 se define en `src-tauri/tauri.android.conf.json`, sin cambiar la
+Android 0.27.0 se define en `src-tauri/tauri.android.conf.json`, sin cambiar la
 versión de Windows. El proyecto generado `src-tauri/gen/android` no se versiona.
 
 Si Windows rechaza el enlace simbólico después de compilar Rust, el script copia
@@ -41,7 +51,7 @@ release respaldada y un proceso de publicación.
 
 ## Candidata generada (28/09/2026)
 
-APK debug ARM64 0.26.0, versionCode 26000, minSdk 26, targetSdk 36.
+APK debug ARM64 0.27.0, versionCode 27000, minSdk 26, targetSdk 36.
 Archivo: `app/build/outputs/apk/universal/debug/app-universal-debug.apk` dentro
 de `src-tauri/gen/android`. Tamaño 142008343 bytes (incluye símbolos debug).
 SHA-256: `F0D076D5159E1D997A52D13EE1E2C42D84B6BE4FC6D32A6B9421FC781384A175`.

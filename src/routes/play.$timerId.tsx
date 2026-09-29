@@ -1,4 +1,3 @@
-import { useAndroidForeground } from "@/hooks/use-android-foreground";
 import { isAndroidApp } from "@/lib/platform";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -16,12 +15,12 @@ import {
 import { TimerSession, type Playback } from "@/lib/timer-session";
 import { stageColor, stageColorPalette } from "@/lib/stage-colors";
 import {
-  controlDesktopSession,
   desktopStage,
-  isTauriDesktop,
-  readDesktopSession,
-  startDesktopSession,
-  stopDesktopSession,
+  controlNativeSession,
+  isNativeSession,
+  readNativeSession,
+  startNativeSession,
+  stopNativeSession,
 } from "@/lib/desktop-session";
 import { getTimer } from "@/lib/timer-storage";
 import {
@@ -112,10 +111,10 @@ function Player() {
     setStarting(false);
     let polling = false;
     const id = window.setInterval(() => {
-      if (isTauriDesktop()) {
+      if (isNativeSession()) {
         if (!desktopStartedRef.current || polling) return;
         polling = true;
-        void readDesktopSession(desktopIdRef.current)
+        void readNativeSession(desktopIdRef.current)
           .then((native) => {
             if (native && sessionRef.current === session) {
               session.applySnapshot(native);
@@ -135,7 +134,7 @@ function Player() {
     return () => {
       window.clearInterval(id);
       sessionRef.current = null;
-      if (isTauriDesktop()) void stopDesktopSession(desktopIdRef.current);
+      if (isNativeSession()) void stopNativeSession(desktopIdRef.current);
       else {
         stopSpeaking();
         reportSessionStatus("idle");
@@ -155,10 +154,10 @@ function Player() {
     if (timerNotifications(session.timer)) await requestNotificationPermission();
     if (request !== requestRef.current || session !== sessionRef.current) return;
     try {
-      if (isTauriDesktop()) {
+      if (isNativeSession()) {
         const native = desktopStartedRef.current
-          ? await controlDesktopSession(desktopIdRef.current, "resume")
-          : await startDesktopSession({
+          ? await controlNativeSession(desktopIdRef.current, "resume")
+          : await startNativeSession({
               id: desktopIdRef.current,
               stages: session.steps.map((step) =>
                 desktopStage(
@@ -178,7 +177,7 @@ function Player() {
               },
             });
         if (request !== requestRef.current || session !== sessionRef.current) {
-          await stopDesktopSession(native.id);
+          await stopNativeSession(native.id);
           return;
         }
         desktopStartedRef.current = true;
@@ -201,8 +200,8 @@ function Player() {
     cancelPending();
     const session = sessionRef.current;
     if (!session) return;
-    if (isTauriDesktop() && desktopStartedRef.current) {
-      void controlDesktopSession(desktopIdRef.current, "pause")
+    if (isNativeSession() && desktopStartedRef.current) {
+      void controlNativeSession(desktopIdRef.current, "pause")
         .then((native) => {
           session.applySnapshot(native);
           setPlayback(session.state);
@@ -215,15 +214,13 @@ function Player() {
     stopSpeaking();
     reportSessionStatus("paused");
   };
-  useAndroidForeground(pause);
-
   const goTo = (newIndex: number) => {
     cancelPending();
     const session = sessionRef.current;
     if (!session) return;
-    if (isTauriDesktop() && desktopStartedRef.current) {
+    if (isNativeSession() && desktopStartedRef.current) {
       const action = newIndex < session.state.index ? "previous" : "next";
-      void controlDesktopSession(desktopIdRef.current, action)
+      void controlNativeSession(desktopIdRef.current, action)
         .then((native) => {
           session.applySnapshot(native);
           setPlayback(session.state);
@@ -240,8 +237,8 @@ function Player() {
     cancelPending();
     const session = sessionRef.current;
     if (!session) return;
-    if (isTauriDesktop() && desktopStartedRef.current) {
-      void controlDesktopSession(desktopIdRef.current, "reset")
+    if (isNativeSession() && desktopStartedRef.current) {
+      void controlNativeSession(desktopIdRef.current, "reset")
         .then((native) => {
           session.applySnapshot(native);
           setPlayback(session.state);

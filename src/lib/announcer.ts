@@ -7,7 +7,7 @@
  * sigan funcionando con la ventana oculta en la bandeja.
  */
 
-import { isTauriDesktop } from "./platform.ts";
+import { isAndroidApp, isTauriDesktop } from "./platform.ts";
 
 export type DesktopBridge = {
   stopSpeaking?: () => void;
@@ -23,7 +23,8 @@ declare global {
 }
 
 export const hasDesktopLayer = () =>
-  typeof window !== "undefined" && (Boolean(window.desktopTimer) || isTauriDesktop());
+  typeof window !== "undefined" &&
+  (Boolean(window.desktopTimer) || isTauriDesktop() || isAndroidApp());
 
 const isTauri = isTauriDesktop;
 
@@ -65,6 +66,16 @@ export function stopSpeaking() {
 
 export async function requestNotificationPermission() {
   if (typeof window === "undefined") return false;
+  if (isAndroidApp()) {
+    try {
+      const result = await invoke<{ permissionState?: string }>(
+        "plugin:notification|requestPermissions",
+      );
+      return result.permissionState === "granted" || result.permissionState === "prompt";
+    } catch {
+      return false;
+    }
+  }
   if (isTauri()) {
     try {
       return await invoke<boolean>("native_notifications_available");

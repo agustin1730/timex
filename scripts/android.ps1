@@ -22,6 +22,40 @@ if ($Action -eq 'init' -or !(Test-Path 'src-tauri/gen/android')) {
     & npm.cmd run tauri -- android init --ci --skip-targets-install
     if ($LASTEXITCODE -ne 0) { throw 'No se pudo inicializar Android.' }
 }
+
+# Native Android foreground session is kept in the repository and injected into
+# Tauri's generated project on every build/init. The generated directory is
+# intentionally ignored and can be regenerated safely.
+$androidSource = 'src-tauri/android'
+$androidDestination = 'src-tauri/gen/android/app/src/main/java/com/agustin1730/intervalos/androidsession'
+if (Test-Path $androidSource) {
+    New-Item -ItemType Directory -Force $androidDestination | Out-Null
+    Copy-Item -Path "$androidSource/*.kt" -Destination $androidDestination -Force
+    $manifestPath = 'src-tauri/gen/android/app/src/main/AndroidManifest.xml'
+    $manifest = Get-Content -LiteralPath $manifestPath -Raw
+    if ($manifest -notmatch 'AndroidSessionService') {
+        $permissions = @"
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+"@
+        $manifest = $manifest -replace '<uses-permission android:name="android.permission.INTERNET" />', $permissions.TrimEnd()
+        $service = @'
+        <service
+            android:name=".androidsession.AndroidSessionService"
+            android:exported="false"
+            android:permission="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="interval_timer" />
+        </service>
+'@
+        $manifest = $manifest -replace '    </application>', "$service`r`n    </application>"
+        Set-Content -LiteralPath $manifestPath -Value $manifest -Encoding utf8
+    }
+}
 if ($Action -eq 'build') {
     $buildLog = Join-Path ([IO.Path]::GetTempPath()) 'timex-android-build.log'
     & npm.cmd run tauri -- android build --debug --apk --target aarch64 2>&1 | Tee-Object -FilePath $buildLog

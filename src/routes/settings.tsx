@@ -3,6 +3,7 @@ import { ChevronRight, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAccount } from "@/hooks/use-account";
 import { APP_VERSION, installedVersion, platformName } from "@/lib/app-info";
+import { isAndroidApp } from "@/lib/platform";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [{ title: "Configuración — Time X" }] }),
@@ -58,6 +59,25 @@ function SettingsPage() {
           </dl>
         </div>
       </section>
+
+      {isAndroidApp() && (
+        <section aria-labelledby="android-playback" className="space-y-3">
+          <h2 id="android-playback" className="text-lg font-medium">
+            Reproducción en segundo plano
+          </h2>
+          <div className="panel space-y-3 p-5 text-sm text-muted-foreground">
+            <p>
+              Para que Time X continúe con la pantalla bloqueada, abrí Ajustes de Android → Apps →
+              Time X → Batería y elegí{" "}
+              <strong className="text-foreground">Sin restricciones</strong>.
+            </p>
+            <p>
+              En Xiaomi/HyperOS también podés activar Inicio automático y permitir las
+              notificaciones. El temporizador seguirá funcionando si cambiás de aplicación.
+            </p>
+          </div>
+        </section>
+      )}
     </main>
   );
 }
