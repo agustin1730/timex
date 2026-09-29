@@ -1,8 +1,0 @@
-{
-  "$schema": "../gen/schemas/android-schema.json",
-  "identifier": "android-session",
-  "description": "Permisos del servicio de reproducción persistente en Android.",
-  "platforms": ["android"],
-  "windows": ["main"],
-  "permissions": []
-}
