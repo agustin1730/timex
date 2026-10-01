@@ -234,10 +234,11 @@ fn announce(app: &AppHandle, state: &SharedState, notice: &ScheduledNotice, revi
     let should_send = state
         .lock()
         .map(|mut guard| {
+            let widget_visible = guard.widget_visible;
             notice.final_notice
                 || revision.is_some_and(|revision| {
                     notice.notification_title.is_some()
-                        && guard.stage_notice.claim(revision, guard.widget_visible)
+                        && guard.stage_notice.claim(revision, widget_visible)
                 })
         })
         .unwrap_or(false);
