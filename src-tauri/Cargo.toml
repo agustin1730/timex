@@ -1,6 +1,6 @@
 [package]
 name = "intervalos"
-version = "0.27.1"
+version = "0.28.0"
 description = "Temporizadores y secuencias de Time X"
 authors = ["Time X"]
 edition = "2021"

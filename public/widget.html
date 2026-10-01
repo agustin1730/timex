@@ -8,7 +8,7 @@
       :root {
         color-scheme: dark;
         font-family: system-ui, sans-serif;
-        background: #141b23;
+        background: #111820;
       }
       * {
         box-sizing: border-box;
@@ -22,15 +22,16 @@
       }
       body {
         border: 1px solid #34404c;
-        border-left: 4px solid var(--stage, #89929f);
-        border-radius: 10px;
+        border-radius: 12px;
+        background: #141b23;
         color: #f3f5f7;
       }
       main {
         height: 100%;
         display: flex;
         flex-direction: column;
-        padding: 9px 10px 8px;
+        padding: 9px 12px 10px;
+        gap: 5px;
       }
       header {
         display: flex;
@@ -38,22 +39,38 @@
         gap: 5px;
         min-width: 0;
       }
-      #stage {
+      #block {
         flex: 1;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        font-size: 12px;
-        font-weight: 600;
+        color: #aab4bf;
+        font-size: 11px;
       }
       #repeat {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         color: #aab4bf;
-        font-size: 10px;
+        font-size: 11px;
         line-height: 1.2;
+      }
+      #hero {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-width: 0;
+        gap: 9px;
+      }
+      #stage {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--stage, #aab4bf);
+        font-size: 18px;
+        font-weight: 700;
       }
       button {
         border: 0;
@@ -82,28 +99,42 @@
         line-height: 18px;
       }
       #clock {
-        margin: auto 0;
-        text-align: center;
+        flex: none;
+        text-align: right;
         font-variant-numeric: tabular-nums;
-        font-size: 33px;
+        font-size: 27px;
         font-weight: 700;
         line-height: 1;
-        letter-spacing: 0.02em;
+      }
+      #progress {
+        height: 5px;
+        margin: 2px 0 3px;
+        border-radius: 999px;
+        background: #26313d;
+        overflow: hidden;
+      }
+      #progress-fill {
+        height: 100%;
+        width: 0;
+        border-radius: inherit;
+        background: var(--stage, #89929f);
+        transition: width 100ms linear;
       }
       footer {
         display: flex;
         justify-content: center;
-        gap: 8px;
+        gap: 9px;
+        margin-top: auto;
       }
       footer button {
-        width: 36px;
-        height: 28px;
+        width: 34px;
+        height: 26px;
         border-radius: 6px;
         font-size: 17px;
         line-height: 1;
       }
       #toggle {
-        background: var(--stage, #89929f);
+        background: #ff9900;
         color: #111820;
       }
       #toggle:hover {
@@ -114,11 +145,12 @@
   <body>
     <main>
       <header>
-        <span id="stage">Etapa</span
+        <span id="block">Bloque</span
         ><button id="close" aria-label="Cerrar mini widget" title="Cerrar">×</button>
       </header>
+      <div id="hero"><span id="stage">Etapa</span><span id="clock" role="timer" aria-label="Tiempo restante">0:00</span></div>
       <div id="repeat">Repetición 1 de 1</div>
-      <div id="clock" role="timer" aria-label="Tiempo restante">0:00</div>
+      <div id="progress" role="progressbar" aria-label="Progreso del bloque" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progress-fill"></div></div>
       <footer>
         <button id="previous" aria-label="Etapa anterior" title="Anterior">⏮</button>
         <button id="toggle" aria-label="Pausar" title="Pausar">Ⅱ</button>
@@ -128,19 +160,26 @@
     <script>
       const invoke = window.__TAURI__?.core?.invoke;
       const stage = document.getElementById("stage");
+      const block = document.getElementById("block");
       const repeat = document.getElementById("repeat");
       const clock = document.getElementById("clock");
+      const progress = document.getElementById("progress");
+      const progressFill = document.getElementById("progress-fill");
       const toggle = document.getElementById("toggle");
       let current = null;
       let busy = false;
       const draw = (value) => {
         current = value;
         if (!value) return;
+        block.textContent = value.blockName || "Bloque";
         stage.textContent = value.stageName;
         repeat.textContent = `Repetición ${value.repeatIndex} de ${value.repeatTotal}`;
         const seconds = Math.max(0, Math.ceil(value.remaining));
         clock.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
         document.body.style.setProperty("--stage", value.color);
+        const percent = Math.round(Math.max(0, Math.min(1, value.blockProgress || 0)) * 100);
+        progressFill.style.width = `${percent}%`;
+        progress.setAttribute("aria-valuenow", String(percent));
         toggle.textContent = value.running ? "Ⅱ" : "▶";
         toggle.setAttribute("aria-label", value.running ? "Pausar" : "Reanudar");
         toggle.title = value.running ? "Pausar" : "Reanudar";

@@ -9,6 +9,10 @@ pub struct Stage {
     pub color: String,
     pub repeat_index: u64,
     pub repeat_total: u64,
+    #[serde(default)]
+    pub block_name: String,
+    #[serde(default)]
+    pub block_key: String,
     pub context: String,
     pub voice: bool,
     pub notifications: bool,
@@ -44,6 +48,8 @@ pub struct Snapshot {
     pub color: String,
     pub repeat_index: u64,
     pub repeat_total: u64,
+    pub block_name: String,
+    pub block_progress: f64,
     pub widget_enabled: bool,
     pub widget_visible: bool,
 }
@@ -56,6 +62,8 @@ pub enum Transition {
 pub struct Session {
     pub id: String,
     pub stages: Vec<Stage>,
+    /// Elapsed milliseconds before this stage and total milliseconds in its block.
+    block_positions: Vec<(u64, u64)>,
     pub finish: Finish,
     pub index: usize,
     pub remaining_ms: u64,
@@ -80,9 +88,30 @@ impl Session {
         if remaining_ms > max_ms {
             return Err("Tiempo restante inválido".into());
         }
+        let mut block_positions = vec![(0, 0); input.stages.len()];
+        let mut start = 0;
+        while start < input.stages.len() {
+            let key = &input.stages[start].block_key;
+            let mut end = start + 1;
+            if !key.is_empty() {
+                while end < input.stages.len() && input.stages[end].block_key == *key {
+                    end += 1;
+                }
+            }
+            let total = input.stages[start..end].iter().fold(0_u64, |sum, step| {
+                sum.saturating_add(step.duration.saturating_mul(1000))
+            });
+            let mut elapsed = 0_u64;
+            for (offset, step) in input.stages[start..end].iter().enumerate() {
+                block_positions[start + offset] = (elapsed, total);
+                elapsed = elapsed.saturating_add(step.duration.saturating_mul(1000));
+            }
+            start = end;
+        }
         Ok(Self {
             id: input.id,
             stages: input.stages,
+            block_positions,
             finish: input.finish,
             index: input.index,
             remaining_ms,
@@ -101,6 +130,17 @@ impl Session {
 
     pub fn snapshot(&self, now: Instant, enabled: bool, visible: bool) -> Snapshot {
         let step = &self.stages[self.index];
+        let (elapsed_before, block_total) = self.block_positions[self.index];
+        let stage_elapsed = step
+            .duration
+            .saturating_mul(1000)
+            .saturating_sub(self.remaining_ms(now));
+        let block_progress = if block_total == 0 {
+            0.0
+        } else {
+            elapsed_before.saturating_add(stage_elapsed).min(block_total) as f64
+                / block_total as f64
+        };
         Snapshot {
             id: self.id.clone(),
             index: self.index,
@@ -111,6 +151,8 @@ impl Session {
             color: step.color.clone(),
             repeat_index: step.repeat_index,
             repeat_total: step.repeat_total,
+            block_name: step.block_name.clone(),
+            block_progress,
             widget_enabled: enabled,
             widget_visible: visible,
         }
@@ -206,6 +248,8 @@ mod tests {
             color: "gray".into(),
             repeat_index: 1,
             repeat_total: 3,
+            block_name: "Round 1".into(),
+            block_key: "one".into(),
             context: String::new(),
             voice: true,
             notifications: true,
@@ -260,5 +304,41 @@ mod tests {
             Some(Transition::Finish(_))
         ));
         assert!(s.advance(now + Duration::from_secs(8)).is_none());
+    }
+
+    #[test]
+    fn block_progress_follows_all_repetitions_and_jumps() {
+        let now = Instant::now();
+        let mut stages = vec![stage("Trabajo", 5), stage("Descanso", 2), stage("Trabajo", 5), stage("Descanso", 2)];
+        stages[2].repeat_index = 2;
+        stages[3].repeat_index = 2;
+        for step in &mut stages {
+            step.repeat_total = 2;
+        }
+        let mut next_block = stage("Otro bloque", 3);
+        next_block.block_key = "two".into();
+        next_block.block_name = "Round 2".into();
+        stages.push(next_block);
+        let mut session = Session::new(SessionInput {
+            id: "blocks".into(),
+            stages,
+            index: 0,
+            remaining: 5.0,
+            finish: Finish { title: "Fin".into(), body: String::new(), voice: false, notifications: false },
+        }, now).unwrap();
+        assert_eq!(session.snapshot(now, true, true).block_progress, 0.0);
+        session.control("next", now).unwrap();
+        assert!((session.snapshot(now, true, true).block_progress - 5.0 / 14.0).abs() < 0.0001);
+        session.control("next", now).unwrap();
+        assert_eq!(session.snapshot(now, true, true).repeat_index, 2);
+        assert_eq!(session.snapshot(now, true, true).block_progress, 0.5);
+        session.control("previous", now).unwrap();
+        assert!((session.snapshot(now, true, true).block_progress - 5.0 / 14.0).abs() < 0.0001);
+        session.control("next", now).unwrap();
+        session.control("next", now).unwrap();
+        session.control("next", now).unwrap();
+        let snapshot = session.snapshot(now, true, true);
+        assert_eq!(snapshot.block_name, "Round 2");
+        assert_eq!(snapshot.block_progress, 0.0);
     }
 }

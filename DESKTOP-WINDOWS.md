@@ -1,5 +1,30 @@
 # Time X para Windows
 
+## Candidata 0.28.0: progreso del bloque y avisos al ocultar el widget
+
+El mini widget conserva etapa, tiempo y tres controles. Ahora muestra el nombre
+del bloque, `Repetición X de Y` y una barra que acumula la duración real de sus
+etapas a través de todas las repeticiones. Siguiente, Anterior y Reiniciar
+actualizan la barra desde la misma copia nativa de la sesión. Las transiciones
+de secuencias se muestran como un tramo propio. No cambian los temporizadores,
+las secuencias ni las claves guardadas.
+
+La supresión de avisos de etapa depende de que el widget esté visible. Si se
+oculta con la X, el control del reproductor o la bandeja durante una etapa, se
+emite una sola notificación de esa etapa cuando está activada en su temporizador
+o transición; las etapas siguientes se avisan normalmente. Mostrar el widget
+de nuevo vuelve a suspender esos avisos. La voz conserva su ajuste y no se
+repite al ocultar el widget. Los avisos no dependen de que la ventana principal
+esté abierta, minimizada u oculta.
+
+Verificación automática: `npm test` (41 correctas), `npm run typecheck`,
+`npm run lint` (sin errores; seis advertencias previas) y `npm run build`.
+La directiva de integridad de Windows de esta computadora bloqueó `cargo fmt`
+y la ejecución local de `cargo test --release`. El workflow de Windows ejecuta
+las pruebas Rust y construye el instalador para esta rama. Falta probar en la
+instalación real que Windows entregue los avisos, que la voz no se repita y que
+la barra y la repetición coincidan al saltar entre bloques.
+
 ## Versión candidata 0.24.0: importación y exportación JSON
 
 La biblioteca permite importar un archivo JSON de Time X desde la raíz o la
@@ -66,7 +91,7 @@ Comandos disponibles:
 - `npm run desktop:build`: genera el ejecutable y el instalador NSIS.
 - `npm run desktop:info`: muestra el diagnóstico del entorno.
 
-El instalador de la versión actual se genera en `src-tauri/target/release/bundle/nsis/Time X_0.24.0_x64-setup.exe` al ejecutar `npm run desktop:build`. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
+El instalador 0.24.0 se generó en `src-tauri/target/release/bundle/nsis/Time X_0.24.0_x64-setup.exe`. Para nuevas versiones se ejecuta `npm run desktop:build` o el workflow de Windows de la rama. No incluye actualizador automático ni firma de código. Para actualizar manualmente, cerrar o detener la sesión activa si corresponde y ejecutar el instalador de la versión nueva sobre la instalada.
 
 ## Comportamiento de escritorio implementado
 

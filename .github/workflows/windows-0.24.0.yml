@@ -1,9 +1,10 @@
-name: Build Time X for Windows 0.24.0
+name: Build Time X for Windows
 
 on:
   push:
     branches:
       - codex/json-timer-import-export-0.24.0
+      - codex/windows-widget-notifications-0.28.0
   workflow_dispatch:
 
 jobs:
@@ -24,11 +25,15 @@ jobs:
         run: |
           npm run typecheck
           npm run lint
+          npm test
           npm run build
+      - name: Test native session
+        working-directory: src-tauri
+        run: cargo test --release
       - name: Build Windows installer
         run: npm run desktop:build
       - uses: actions/upload-artifact@v4
         with:
-          name: Time-X-0.24.0-Windows
-          path: src-tauri/target/release/bundle/nsis/Time X_0.24.0_x64-setup.exe
+          name: Time-X-Windows-installer
+          path: src-tauri/target/release/bundle/nsis/Time X_*_x64-setup.exe
           if-no-files-found: error

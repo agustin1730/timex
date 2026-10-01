@@ -168,6 +168,7 @@ function SequencePlayer() {
                     .join(" · "),
                   step.voice,
                   step.notifications,
+                  `${step.itemId}/${step.groupIndex}/${step.blockIndex}`,
                 ),
               ),
               index: session.state.index,

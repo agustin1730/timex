@@ -52,6 +52,38 @@ struct ScheduledNotice {
     final_notice: bool,
 }
 
+#[derive(Default)]
+struct StageNoticeGate {
+    current: u64,
+    delivered: Option<u64>,
+}
+
+impl StageNoticeGate {
+    fn stage_started(&mut self) -> u64 {
+        self.current = self.current.wrapping_add(1);
+        self.current
+    }
+
+    fn should_send(&self, revision: u64, widget_visible: bool) -> bool {
+        !widget_visible && revision == self.current && self.delivered != Some(revision)
+    }
+
+    fn claim(&mut self, revision: u64, widget_visible: bool) -> bool {
+        if self.should_send(revision, widget_visible) {
+            self.delivered = Some(revision);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn release(&mut self, revision: u64) {
+        if self.delivered == Some(revision) {
+            self.delivered = None;
+        }
+    }
+}
+
 struct DesktopState {
     generation: u64,
     status: SessionStatus,
@@ -62,6 +94,7 @@ struct DesktopState {
     widget_enabled: bool,
     widget_visible: bool,
     widget_dismissed: bool,
+    stage_notice: StageNoticeGate,
     session: Option<Session>,
 }
 type SharedState = Arc<Mutex<DesktopState>>;
@@ -131,9 +164,34 @@ fn widget_window(app: &AppHandle, state: &SharedState, visible: bool) -> Result<
     } else {
         window.hide().map_err(|error| error.to_string())?;
     }
+    let mut current_notice = None;
     if let Ok(mut guard) = state.lock() {
+        let was_visible = guard.widget_visible;
         guard.widget_visible = visible;
         sync_widget_menu(&guard);
+        if was_visible && !visible && guard.status.keeps_window_alive() {
+            if let Some(session) = guard.session.as_ref().filter(|session| session.announced) {
+                let revision = guard.stage_notice.current;
+                let notice =
+                    transition_notice(Transition::Stage(session.stages[session.index].clone()));
+                if notice.notification_title.is_some() && guard.stage_notice.claim(revision, false) {
+                    current_notice = Some((revision, notice));
+                }
+            }
+        }
+    }
+    if let Some((revision, notice)) = current_notice {
+        if let Some(title) = notice.notification_title.as_deref() {
+            if !show_notification(
+                app,
+                title,
+                notice.notification_body.as_deref().unwrap_or_default(),
+            ) {
+                if let Ok(mut guard) = state.lock() {
+                    guard.stage_notice.release(revision);
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -155,7 +213,16 @@ fn show_widget_if_enabled(app: &AppHandle, state: &SharedState) {
     }
 }
 
-fn announce(app: &AppHandle, state: &SharedState, notice: &ScheduledNotice) {
+fn announce(app: &AppHandle, state: &SharedState, notice: &ScheduledNotice, revision: Option<u64>) {
+    if let Some(revision) = revision {
+        if state
+            .lock()
+            .map(|guard| guard.stage_notice.current != revision)
+            .unwrap_or(true)
+        {
+            return;
+        }
+    }
     stop_voice(state);
     if let Some(text) = notice.voice_text.as_deref() {
         if let Ok(mut guard) = state.lock() {
@@ -164,22 +231,34 @@ fn announce(app: &AppHandle, state: &SharedState, notice: &ScheduledNotice) {
             }
         }
     }
-    let suppress = state
+    let should_send = state
         .lock()
-        .map(|guard| guard.widget_visible && !notice.final_notice)
+        .map(|mut guard| {
+            notice.final_notice
+                || revision.is_some_and(|revision| {
+                    notice.notification_title.is_some()
+                        && guard.stage_notice.claim(revision, guard.widget_visible)
+                })
+        })
         .unwrap_or(false);
-    if !suppress {
+    if should_send {
         if let Some(title) = notice.notification_title.as_deref() {
-            show_notification(
+            if !show_notification(
                 app,
                 title,
                 notice.notification_body.as_deref().unwrap_or_default(),
-            );
+            ) {
+                if let Some(revision) = revision {
+                    if let Ok(mut guard) = state.lock() {
+                        guard.stage_notice.release(revision);
+                    }
+                }
+            }
         }
     }
 }
 
-fn show_notification(app: &AppHandle, title: &str, body: &str) {
+fn show_notification(app: &AppHandle, title: &str, body: &str) -> bool {
     let mut notification = Notification::new();
     notification
         .summary(title)
@@ -197,8 +276,12 @@ fn show_notification(app: &AppHandle, title: &str, body: &str) {
                     }
                 });
             });
+            true
         }
-        Err(error) => eprintln!("No se pudo mostrar la notificación: {error}"),
+        Err(error) => {
+            eprintln!("No se pudo mostrar la notificación: {error}");
+            false
+        }
     }
 }
 
@@ -251,7 +334,7 @@ fn transition_notice(transition: Transition) -> ScheduledNotice {
 
 fn spawn_desktop_worker(app: AppHandle, state: SharedState, generation: u64) {
     thread::spawn(move || loop {
-        let (event, finished) = {
+        let (event, finished, revision) = {
             let mut guard = match state.lock() {
                 Ok(guard) => guard,
                 Err(_) => return,
@@ -264,6 +347,11 @@ fn spawn_desktop_worker(app: AppHandle, state: SharedState, generation: u64) {
             };
             let event = session.advance(Instant::now());
             let finished = session.finished;
+            let revision = if matches!(&event, Some(Transition::Stage(_))) {
+                Some(guard.stage_notice.stage_started())
+            } else {
+                None
+            };
             if finished {
                 guard.status = SessionStatus::Finished;
                 if let Some(item) = guard.status_item.as_ref() {
@@ -271,7 +359,7 @@ fn spawn_desktop_worker(app: AppHandle, state: SharedState, generation: u64) {
                 }
                 sync_widget_menu(&guard);
             }
-            (event, finished)
+            (event, finished, revision)
         };
         if state
             .lock()
@@ -284,7 +372,7 @@ fn spawn_desktop_worker(app: AppHandle, state: SharedState, generation: u64) {
             let _ = widget_window(&app, &state, false);
         }
         if let Some(event) = event {
-            announce(&app, &state, &transition_notice(event));
+            announce(&app, &state, &transition_notice(event), revision);
         }
         if finished {
             return;
@@ -311,20 +399,26 @@ fn desktop_start_session(
     let session = Session::new(input, Instant::now())?;
     let first = session.stages[session.index].clone();
     let shared = state.inner().clone();
-    let generation = {
+    let (generation, revision) = {
         let mut guard = shared.lock().map_err(|error| error.to_string())?;
         guard.generation += 1;
         guard.status = SessionStatus::Running;
         guard.widget_dismissed = false;
         guard.session = Some(session);
+        let revision = guard.stage_notice.stage_started();
         if let Some(item) = guard.status_item.as_ref() {
             let _ = item.set_text(SessionStatus::Running.label());
         }
         sync_widget_menu(&guard);
-        guard.generation
+        (guard.generation, revision)
     };
     show_widget_if_enabled(&app, &shared);
-    announce(&app, &shared, &transition_notice(Transition::Stage(first)));
+    announce(
+        &app,
+        &shared,
+        &transition_notice(Transition::Stage(first)),
+        Some(revision),
+    );
     spawn_desktop_worker(app, shared.clone(), generation);
     desktop_snapshot(&shared, None).ok_or("No se pudo iniciar la sesión".into())
 }
@@ -345,7 +439,7 @@ fn desktop_control(
     action: String,
 ) -> Result<Snapshot, String> {
     let shared = state.inner().clone();
-    let (event, running, reset, generation) = {
+    let (event, running, reset, generation, revision) = {
         let mut guard = shared.lock().map_err(|error| error.to_string())?;
         let session = guard.session.as_mut().ok_or("No hay sesión activa")?;
         if session.id != session_id {
@@ -354,6 +448,13 @@ fn desktop_control(
         let event = session.control(&action, Instant::now())?;
         let running = session.running;
         let reset = action == "reset";
+        let revision = if matches!(action.as_str(), "next" | "previous")
+            || matches!(&event, Some(Transition::Stage(_)))
+        {
+            Some(guard.stage_notice.stage_started())
+        } else {
+            None
+        };
         guard.generation += 1;
         guard.status = if reset {
             SessionStatus::Idle
@@ -366,7 +467,7 @@ fn desktop_control(
             let _ = item.set_text(guard.status.label());
         }
         sync_widget_menu(&guard);
-        (event, running, reset, guard.generation)
+        (event, running, reset, guard.generation, revision)
     };
     if reset {
         widget_window(&app, &shared, false)?;
@@ -374,7 +475,7 @@ fn desktop_control(
         show_widget_if_enabled(&app, &shared);
     }
     if let Some(event) = event {
-        announce(&app, &shared, &transition_notice(event));
+        announce(&app, &shared, &transition_notice(event), revision);
     } else if !running {
         stop_voice(&shared);
     }
@@ -496,6 +597,7 @@ pub fn run() {
         widget_enabled: false,
         widget_visible: false,
         widget_dismissed: false,
+        stage_notice: StageNoticeGate::default(),
         session: None,
     }));
     let managed = shared.clone();
@@ -521,7 +623,7 @@ pub fn run() {
         .setup(move |app| {
             WebviewWindowBuilder::new(app, "widget", WebviewUrl::App("widget.html".into()))
                 .title("Mini widget de Time X")
-                .inner_size(224.0, 150.0)
+                .inner_size(300.0, 150.0)
                 .resizable(false)
                 .decorations(false)
                 .always_on_top(true)
@@ -670,5 +772,22 @@ mod tests {
         assert!(!notification_opens_window(&NotificationResponse::Action(
             "other".to_owned()
         )));
+    }
+
+    #[test]
+    fn hidden_widget_releases_only_the_current_stage_notice_once() {
+        let mut gate = StageNoticeGate::default();
+        let first = gate.stage_started();
+        assert!(!gate.should_send(first, true));
+        assert!(gate.should_send(first, false));
+        assert!(gate.claim(first, false));
+        assert!(!gate.should_send(first, false));
+        gate.release(first);
+        assert!(gate.should_send(first, false));
+        assert!(gate.claim(first, false));
+        let second = gate.stage_started();
+        assert!(!gate.should_send(first, false));
+        assert!(!gate.should_send(second, true));
+        assert!(gate.should_send(second, false));
     }
 }
